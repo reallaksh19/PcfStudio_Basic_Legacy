@@ -1,0 +1,537 @@
+/**
+ * rc-stage3-ray-engine.js — Stage 3: Fittings PCF + Component list → Connection Map
+ * Runs 4-pass algorithm: Pass 0 (gap fill), Pass 1 (bridge + early exit), Pass 2 (branch)
+ * Outputs: injectedPipes[], connectionMap, orphanList
+ * 100% independent — only imports from rc-config.js
+ */
+
+import {
+  getRayConfig, vecSub, vecNorm, vecDot, vecScale, vecAdd, vecMag,
+  ptEq, cardinalAxes, fmtNum
+} from './rc-config.js';
+
+// ── Endpoint face types ───────────────────────────────────────────────────────
+// Each "face" is a shootable/hittable endpoint on a component
+// { id, compRefNo, compType, faceKey, point, bore, connected, isStub }
+
+let _faces    = [];  // all faces in engine
+let _injected  = []; // injected PIPE bridges: { ep1, ep2, bore, pipelineRef }
+let _connections = new Map(); // faceId → connected faceId
+let _compCpMap   = new Map(); // compRefNo → true CP {x,y,z}  (B5: for P2 branch direction)
+let _log      = null;
+
+// ── Face key helpers ──────────────────────────────────────────────────────────
+let _faceSeq = 0;
+function makeFaceId() { return `F${++_faceSeq}`; }
+
+// Fix B: Use 1mm grid (Math.round) instead of 0.01mm grid (toFixed(2)).
+// toFixed(2) caused OLET6562.ep1 (1026294.973) and BEND8397.ep2 (1026294.975)
+// to land in different buckets (0.97 vs 0.98) despite being 0.002mm apart.
+function ptKey(pt) {
+  return `${Math.round(pt.x)}_${Math.round(pt.y)}_${Math.round(pt.z)}`;
+}
+
+// ── Build face list from component array ──────────────────────────────────────
+
+function buildFaces(components, cfg) {
+  _faces = [];
+  _connections = new Map();
+  _injected = [];
+  _faceSeq = 0;
+  _compCpMap = new Map(); // B5: reset CP registry
+
+  for (const c of components) {
+    const isStub = c._isStub === true;
+
+    // B5: store true CP for TEE and OLET so P2 uses correct branch direction
+    if ((c.type === 'TEE' || c.type === 'OLET') && c.cp) {
+      _compCpMap.set(c.refNo, { ...c.cp });
+    }
+
+    if (c.type === 'SUPPORT') {
+      // SUPPORT itself has no shootable face — only its stub PIPE does
+      continue;
+    }
+
+    if (c.type === 'OLET') {
+      // OLET: EP1 = upstream on-pipe face, EP2 = downstream on-pipe face (both at CP)
+      // B6: EP2 is tagged _isOletDownstream so pass-through rule applies after EP1 connects
+      const p = c.cp;
+      if (p) {
+        _faces.push({ id: makeFaceId(), compRefNo: c.refNo, compType: c.type,
+          faceKey: 'ep1', point: { ...p }, bore: c.bore, connected: false, isStub });
+        _faces.push({ id: makeFaceId(), compRefNo: c.refNo, compType: c.type,
+          faceKey: 'ep2', point: { ...p }, bore: c.bore, connected: false, isStub,
+          _isOletDownstream: true }); // B6 tag
+      }
+      if (c.bp) {
+        _faces.push({ id: makeFaceId(), compRefNo: c.refNo, compType: c.type,
+          faceKey: 'bp', point: { ...c.bp }, bore: Number(c.branchBore || 50),
+          connected: false, isStub });
+      }
+      continue;
+    }
+
+    if (c.type === 'TEE') {
+      if (c.ep1) _faces.push({ id: makeFaceId(), compRefNo: c.refNo, compType: c.type,
+        faceKey: 'ep1', point: { ...c.ep1 }, bore: c.bore, connected: false, isStub });
+      if (c.ep2) _faces.push({ id: makeFaceId(), compRefNo: c.refNo, compType: c.type,
+        faceKey: 'ep2', point: { ...c.ep2 }, bore: c.bore, connected: false, isStub });
+      if (c.bp)  _faces.push({ id: makeFaceId(), compRefNo: c.refNo, compType: c.type,
+        faceKey: 'bp',  point: { ...c.bp },  bore: Number(c.branchBore || c.bore),
+        connected: false, isStub });
+      continue;
+    }
+
+    // FLANGE, BEND, VALVE, REDU, FBLI, GASK, PCOM and stub PIPEs
+    if (c.ep1) _faces.push({ id: makeFaceId(), compRefNo: c.refNo, compType: c.type,
+      faceKey: 'ep1', point: { ...c.ep1 }, bore: c.bore, connected: false, isStub });
+    if (c.ep2) _faces.push({ id: makeFaceId(), compRefNo: c.refNo, compType: c.type,
+      faceKey: 'ep2', point: { ...c.ep2 }, bore: c.bore, connected: false, isStub });
+  }
+}
+
+// ── Initial connectivity: mark faces that share coordinates as connected ──────
+
+function resolveInitialConnections() {
+  const ptIndex = new Map(); // ptKey → [faceId, ...]
+
+  for (const f of _faces) {
+    const k = ptKey(f.point);
+    if (!ptIndex.has(k)) ptIndex.set(k, []);
+    ptIndex.get(k).push(f.id);
+  }
+
+  // For each group of faces at the same point, connect them to each other
+  // BUT: OLET ep1/ep2 are at the same point — don't auto-connect to each other
+  for (const [, ids] of ptIndex) {
+    if (ids.length < 2) continue;
+    // Connect all pairs EXCEPT same-component same-coord (OLET ep1↔ep2)
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const fa = faceById(ids[i]);
+        const fb = faceById(ids[j]);
+        if (!fa || !fb) continue;
+        // Skip same-component connections (OLET ep1 ↔ ep2 at same coord)
+        if (fa.compRefNo === fb.compRefNo) continue;
+        // Skip stub→stub connections
+        if (fa.isStub && fb.isStub) continue;
+        // B7-root: Never auto-connect an OLET downstream (ep2) face at init.
+        // When OLET ep1, ep2, and an upstream face (e.g. BEND.ep2) all share the
+        // same 1mm bucket, the downstream ep2 would be marked connected here —
+        // BEFORE P1 runs — making it invisible to the passthrough + 6-axis logic.
+        // Leave ep2 free so rearmOletPassthroughs + P1 can route it correctly.
+        if (fa._isOletDownstream || fb._isOletDownstream) continue;
+        connect(fa, fb);
+      }
+    }
+  }
+}
+
+function faceById(id) { return _faces.find(f => f.id === id); }
+
+function connect(fa, fb) {
+  fa.connected = true;
+  fb.connected = true;
+  _connections.set(fa.id, fb.id);
+  _connections.set(fb.id, fa.id);
+}
+
+// ── Raycast ───────────────────────────────────────────────────────────────────
+
+function raycast(origin, dir, excludeCompRefNo, cfg) {
+  const maxDist  = cfg.rayMaxDistance;
+  const deadZone = cfg.deadZoneMin;
+  const boreMul  = cfg.boreTolMultiplier;
+  const minTol   = cfg.minBoreTol;
+
+  let bestT    = maxDist;
+  let bestFace = null;
+
+  for (const f of _faces) {
+    if (f.connected) continue;
+    if (f.isStub)    continue;  // stubs are not ray targets
+    if (f.compRefNo === excludeCompRefNo) continue; // no self-hit
+
+    const vec  = vecSub(f.point, origin);
+    const t    = vecDot(vec, dir);
+    if (t < deadZone) continue;
+
+    const proj = vecScale(dir, t);
+    const perp = vecSub(vec, proj);
+    const perpD = vecMag(perp);
+    const tol  = Math.max(f.bore * boreMul, minTol);
+    if (perpD > tol) continue;
+
+    if (t < bestT) { bestT = t; bestFace = f; }
+  }
+
+  return bestFace ? { face: bestFace, t: bestT } : null;
+}
+
+// ── Infer axis vector from component EP1→EP2 direction ───────────────────────
+
+function inferDir(face, allFaces) {
+  // Get sibling face of same component (ep2 if we are ep1, and vice versa)
+  const sibKey = face.faceKey === 'ep1' ? 'ep2' : 'ep1';
+  const sib    = allFaces.find(
+    f => f.compRefNo === face.compRefNo && f.faceKey === sibKey
+  );
+  if (!sib) return null;
+  const d = vecSub(face.point, sib.point);
+  if (vecMag(d) < 1e-6) return null;
+  return vecNorm(d); // points away from sibling (outward direction)
+}
+
+// ── Inject a bridge PIPE ──────────────────────────────────────────────────────
+
+function injectBridge(fa, fb, pipelineRef, cfg) {
+  const bore = Math.min(fa.bore, fb.bore);
+  _injected.push({
+    ep1: { ...fa.point },
+    ep2: { ...fb.point },
+    bore,
+    pipelineRef,
+    fromRefNo: fa.compRefNo,  // audit trail
+    toRefNo:   fb.compRefNo
+  });
+  connect(fa, fb);
+
+  // B6: OLET pass-through — when EP1 gets connected from upstream,
+  // EP2 (downstream face at same coord) gets a synthetic bridge in opposite direction.
+  // This allows the downstream pipe run to originate from the OLET exit point.
+  if (fa._isOletDownstream || fb._isOletDownstream) return; // avoid infinite loop
+  const connectedFace  = fa.connected ? fa : fb;
+  const partnerFace    = fa.connected ? fb : fa;
+  if (connectedFace.compType === 'OLET' && connectedFace.faceKey === 'ep1') {
+    const ep2Face = _faces.find(f =>
+      f.compRefNo === connectedFace.compRefNo &&
+      f.faceKey   === 'ep2' &&
+      !f.connected
+    );
+    if (ep2Face) {
+      // Compute outgoing direction: opposite of incoming vector
+      const incomingDir = vecNorm(vecSub(connectedFace.point, partnerFace.point));
+      // ep2 shoots in same direction as the incoming ray (pipe continues through OLET)
+      ep2Face._passthroughDir = incomingDir;
+      _log?.('S3-P1', 'olet-passthrough-armed', connectedFace.compRefNo,
+        { ep2Id: ep2Face.id, dir: incomingDir });
+    }
+  }
+}
+
+// ── PASS 0 — Gap Fill (≤ gapFillTolerance mm) ─────────────────────────────────
+
+function runPass0(pipelineRef, cfg) {
+  const tol       = cfg.gapFillTolerance;
+  const fillTypes = cfg.gapFillTypes;
+  let filled      = 0;
+
+  const orphans = _faces.filter(f => !f.connected && fillTypes.includes(f.compType));
+
+  for (const f of orphans) {
+    if (f.connected) continue;
+    // Find nearest unconnected face within gap tolerance
+    let bestDist = Infinity;
+    let bestF    = null;
+    for (const g of _faces) {
+      if (g.id === f.id) continue;
+      if (g.connected)   continue;
+      if (g.compRefNo === f.compRefNo) continue;
+      const dist = vecMag(vecSub(f.point, g.point));
+      if (dist <= tol && dist < bestDist) { bestDist = dist; bestF = g; }
+    }
+    if (bestF) {
+      // Stretch f.point to meet bestF.point
+      f.point = { ...bestF.point };
+      _log?.('S3-P0', 'gap-filled', f.compRefNo,
+        { from: f.point, to: bestF.point, dist: bestDist });
+      connect(f, bestF);
+      filled++;
+    }
+  }
+  return filled;
+}
+
+// ── PASS 1 — Bridging ──────────────────────────────────────────────────────────
+
+// Mitigation M1 (Fix B): When OLET.ep1 connects during resolveInitialConnections
+// (not via injectBridge), the passthrough arming in injectBridge is bypassed.
+// This sweep re-arms any OLET ep2 whose ep1 is now connected but ep2 is still dark.
+function rearmOletPassthroughs() {
+  const oletEp1Faces = _faces.filter(
+    f => f.compType === 'OLET' && f.faceKey === 'ep1' && f.connected
+  );
+  for (const ep1 of oletEp1Faces) {
+    const ep2 = _faces.find(
+      f => f.compRefNo === ep1.compRefNo && f.faceKey === 'ep2' && !f.connected
+    );
+    if (!ep2) continue;                          // ep2 already connected — skip
+    if (ep2._passthroughDir) continue;           // already armed via injectBridge — skip
+    // Get the partner face that ep1 connected to
+    const partnerId = _connections.get(ep1.id);
+    const partner   = _faces.find(f => f.id === partnerId);
+    if (!partner) continue;
+    // incomingDir: the vector from partner → ep1 (i.e., the pipe direction arriving at OLET)
+    const incomingDir = vecNorm(vecSub(ep1.point, partner.point));
+    ep2._passthroughDir = incomingDir;
+    _log?.('S3-P1', 'olet-ep2-rearmed', ep1.compRefNo,
+      { ep2Id: ep2.id, dir: incomingDir, partner: partner.compRefNo });
+  }
+}
+
+function runPass1(components, pipelineRef, cfg) {
+  const deTypes = cfg.deTypes;
+  let bridged   = 0;
+
+  // M1: Re-arm any OLET ep2 passthroughs that were missed because ep1 connected at init
+  rearmOletPassthroughs();
+
+  for (const f of _faces) {
+    if (f.connected || f.isStub) continue;
+    if (f.faceKey === 'bp') continue; // Pass 2 handles branch points
+
+    // B6: OLET downstream — use armed passthrough direction if available
+    // B7: When passthrough misses (e.g. garbage direction from co-located ep1/partner),
+    //     fall through to 6-axis fallback instead of continuing. This fixes the case
+    //     where OLET ep1 and its upstream partner share the same point bucket: the
+    //     computed passthrough direction is near-zero and always misses, leaving the
+    //     downstream OLET face orphaned and allowing downstream components (e.g. REDU)
+    //     to fire long false-positive rays to unrelated elbows.
+    if (f._isOletDownstream && f._passthroughDir) {
+      _log?.('S3-P1', 'ray-cast', f.compRefNo,
+        { origin: f.point, dir: f._passthroughDir, method: 'olet-passthrough' });
+      const hit = raycast(f.point, f._passthroughDir, f.compRefNo, cfg);
+      if (hit) {
+        _log?.('S3-P1', 'hit', f.compRefNo,
+          { target: hit.face.compRefNo, t: hit.t, faceKey: hit.face.faceKey });
+        injectBridge(f, hit.face, pipelineRef, cfg);
+        bridged++;
+        continue; // B7: only skip 6-axis when passthrough actually hits
+      }
+      // Passthrough missed — fall through to 6-axis fallback below (B7)
+      _log?.('S3-P1', 'olet-passthrough-miss-fallback', f.compRefNo,
+        { origin: f.point, faceKey: f.faceKey });
+    }
+
+    // Early Exit: DE type with one side already connected
+    if (deTypes.includes(f.compType)) {
+      const sibling = _faces.find(
+        s => s.compRefNo === f.compRefNo && s.id !== f.id && s.connected
+      );
+      if (sibling) {
+        _log?.('S3-P1', 'early-exit', f.compRefNo,
+          { reason: 'DE type, sibling connected', faceKey: f.faceKey });
+        continue;
+      }
+    }
+
+    // Primary ray: component's own axis direction (outward)
+    let hit = null;
+    const axDir = inferDir(f, _faces);
+    if (axDir) {
+      _log?.('S3-P1', 'ray-cast', f.compRefNo,
+        { origin: f.point, dir: axDir, method: 'axis-vector' });
+      hit = raycast(f.point, axDir, f.compRefNo, cfg);
+    }
+
+    // Fallback: 6 cardinal axes
+    if (!hit) {
+      for (const ax of cardinalAxes()) {
+        _log?.('S3-P1', 'ray-cast', f.compRefNo,
+          { origin: f.point, dir: ax, method: '6-axis-fallback' });
+        hit = raycast(f.point, ax, f.compRefNo, cfg);
+        if (hit) break;
+      }
+    }
+
+    if (hit) {
+      _log?.('S3-P1', 'hit', f.compRefNo,
+        { target: hit.face.compRefNo, t: hit.t, faceKey: hit.face.faceKey });
+      injectBridge(f, hit.face, pipelineRef, cfg);
+      bridged++;
+    } else {
+      _log?.('S3-P1', 'miss', f.compRefNo,
+        { origin: f.point, faceKey: f.faceKey });
+    }
+  }
+  return bridged;
+}
+
+// ── PASS 2 — Branch Resolution (TEE / OLET BP) ────────────────────────────────
+
+function runPass2(pipelineRef, cfg) {
+  let resolved = 0;
+
+  const bpFaces = _faces.filter(f => !f.connected && f.faceKey === 'bp');
+
+  for (const f of bpFaces) {
+    // B5: Use true CP from _compCpMap (not EP1 face) for branch direction
+    const trueCP = _compCpMap.get(f.compRefNo);
+    if (!trueCP) {
+      _log?.('S3-P2', 'skip-no-cp', f.compRefNo, {});
+      continue;
+    }
+
+    const branchDir = vecNorm(vecSub(f.point, trueCP));
+    const hasDir   = vecMag(branchDir) > 1e-6;
+
+    // Primary: shoot in normalize(BP - CP) direction
+    if (hasDir) {
+      _log?.('S3-P2', 'ray-cast', f.compRefNo,
+        { origin: f.point, dir: branchDir, cp: trueCP });
+      const hit = raycast(f.point, branchDir, f.compRefNo, cfg);
+      if (hit) {
+        _log?.('S3-P2', 'hit', f.compRefNo, { target: hit.face.compRefNo, t: hit.t });
+        injectBridge(f, hit.face, pipelineRef, cfg);
+        resolved++;
+        continue;
+      }
+    }
+
+    // Fallback 1: 6 cardinal axes from BP
+    let hitFallback = null;
+    for (const ax of cardinalAxes()) {
+      hitFallback = raycast(f.point, ax, f.compRefNo, cfg);
+      if (hitFallback) {
+        _log?.('S3-P2', 'hit-cardinal', f.compRefNo,
+          { target: hitFallback.face.compRefNo, t: hitFallback.t, axis: ax });
+        injectBridge(f, hitFallback.face, pipelineRef, cfg);
+        resolved++;
+        break;
+      }
+    }
+    if (f.connected) continue;
+
+    // Fallback 2: Proximity search — find nearest unconnected non-stub face
+    // within proximityMaxDist. Candidate must align with branchDir within proximityMinDot.
+    // Fix A: Raised dot threshold (0.2→cfg.proximityMinDot=0.85) and added hard
+    // distance cap (cfg.proximityMaxDist=10000mm) to eliminate false 135km hits.
+    const maxProxDist = cfg.proximityMaxDist || 10000;
+    const minDot      = cfg.proximityMinDot  || 0.85;
+    let bestDist      = maxProxDist;
+    let bestTarget    = null;
+
+    for (const g of _faces) {
+      if (g.connected)   continue;
+      if (g.isStub)      continue;
+      if (g.compRefNo === f.compRefNo) continue;
+      const dist = vecMag(vecSub(g.point, f.point));
+      if (dist >= bestDist) continue;
+      // Alignment check: target must be within ~32° of branch direction
+      if (hasDir) {
+        const dotVal = vecDot(vecNorm(vecSub(g.point, f.point)), branchDir);
+        if (dotVal < minDot) continue; // Fix A: strict gate (was 0.2, now 0.85)
+      }
+      bestDist   = dist;
+      bestTarget = g;
+    }
+
+    if (bestTarget) {
+      _log?.('S3-P2', 'hit-proximity', f.compRefNo,
+        { target: bestTarget.compRefNo, dist: bestDist });
+      injectBridge(f, bestTarget, pipelineRef, cfg);
+      resolved++;
+    } else {
+      _log?.('S3-P2', 'miss', f.compRefNo, { origin: f.point });
+    }
+  }
+  return resolved;
+}
+
+// ── Build connection map for Stage 4 ─────────────────────────────────────────
+
+function buildConnectionMap() {
+  const map = {};
+  for (const f of _faces) {
+    if (!map[f.compRefNo]) {
+      map[f.compRefNo] = { type: f.compType, ep1: null, ep2: null, bp: null };
+    }
+    if (_connections.has(f.id)) {
+      const partnerId   = _connections.get(f.id);
+      const partnerFace = faceById(partnerId);
+      map[f.compRefNo][f.faceKey] = partnerFace ? partnerFace.compRefNo : null;
+    }
+  }
+  return map;
+}
+
+// ── Build orphan report ───────────────────────────────────────────────────────
+
+function buildOrphanList() {
+  return _faces
+    .filter(f => !f.connected && !f.isStub)
+    .map(f => ({ refNo: f.compRefNo, type: f.compType, faceKey: f.faceKey, point: f.point }));
+}
+
+// ── Connection matrix (for Debug tab) ─────────────────────────────────────────
+
+function buildConnectionMatrix() {
+  const seen = new Set();
+  const rows = [];
+  for (const f of _faces) {
+    if (seen.has(f.compRefNo)) continue;
+    seen.add(f.compRefNo);
+    const ep1F = _faces.find(x => x.compRefNo === f.compRefNo && x.faceKey === 'ep1');
+    const ep2F = _faces.find(x => x.compRefNo === f.compRefNo && x.faceKey === 'ep2');
+    const bpF  = _faces.find(x => x.compRefNo === f.compRefNo && x.faceKey === 'bp');
+    const ep1c = ep1F ? (ep1F.connected ? faceById(_connections.get(ep1F.id))?.compRefNo : 'ORPHAN') : '—';
+    const ep2c = ep2F ? (ep2F.connected ? faceById(_connections.get(ep2F.id))?.compRefNo : 'ORPHAN') : '—';
+    const bpc  = bpF  ? (bpF.connected  ? faceById(_connections.get(bpF.id))?.compRefNo  : 'ORPHAN') : '—';
+    const allConn = [ep1F, ep2F, bpF].filter(Boolean).every(x => x.connected);
+    const anyConn = [ep1F, ep2F, bpF].filter(Boolean).some(x => x.connected);
+    rows.push({
+      refNo: f.compRefNo, type: f.compType,
+      ep1: ep1c, ep2: ep2c, bp: bpc,
+      status: allConn ? 'FULL' : anyConn ? 'PARTIAL' : 'OPEN'
+    });
+  }
+  return rows;
+}
+
+// ── Main Stage 3 function ─────────────────────────────────────────────────────
+
+/**
+ * @param {object[]} components  — from Stage 1 (includes PIPE comps for reference)
+ * @param {string}   pipelineRef — for injected PIPE blocks
+ * @param {function} logFn
+ * @returns {{ injectedPipes, connectionMap, orphanList, connectionMatrix, passStats }}
+ */
+export function runStage3(components, pipelineRef, logFn = () => {}) {
+  const cfg = getRayConfig();
+  _log = logFn;
+
+  // Only non-PIPE components participate in ray engine
+  // (PIPE stubs from Stage 2 are marked _isStub)
+  const fitComps = components.filter(c =>
+    c.type !== 'PIPE' || c._isStub
+  );
+
+  buildFaces(fitComps, cfg);
+  resolveInitialConnections();
+
+  const stats = { p0: 0, p1: 0, p2: 0 };
+
+  if (cfg.passEnabled.p0) {
+    stats.p0 = runPass0(pipelineRef, cfg);
+    logFn('S3-P0', 'pass-complete', '', { filled: stats.p0 });
+  }
+
+  if (cfg.passEnabled.p1) {
+    stats.p1 = runPass1(components, pipelineRef, cfg);
+    logFn('S3-P1', 'pass-complete', '', { bridged: stats.p1 });
+  }
+
+  if (cfg.passEnabled.p2) {
+    stats.p2 = runPass2(pipelineRef, cfg);
+    logFn('S3-P2', 'pass-complete', '', { resolved: stats.p2 });
+  }
+
+  return {
+    injectedPipes:    [..._injected],
+    connectionMap:    buildConnectionMap(),
+    orphanList:       buildOrphanList(),
+    connectionMatrix: buildConnectionMatrix(),
+    passStats:        stats
+  };
+}

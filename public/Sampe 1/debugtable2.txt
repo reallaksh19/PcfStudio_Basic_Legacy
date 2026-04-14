@@ -1,0 +1,1184 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@19.2.4",
+      "react-dom/client": "https://esm.sh/react-dom@19.2.4/client",
+      "react-dom": "https://esm.sh/react-dom@19.2.4",
+      "zustand": "https://esm.sh/zustand@5.0.11",
+      "zustand/vanilla": "https://esm.sh/zustand@5.0.11/vanilla",
+      "@react-three/fiber": "https://esm.sh/@react-three/fiber@9.5.0?deps=react@19.2.4,three@0.160.0",
+      "@react-three/drei": "https://esm.sh/@react-three/drei@10.7.7?deps=react@19.2.4,three@0.160.0",
+      "papaparse": "https://esm.sh/papaparse@5.5.3",
+      "xlsx": "https://esm.sh/xlsx@0.18.5",
+      "three": "https://esm.sh/three@0.160.0",
+      "three/addons/": "https://esm.sh/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="/@vite/client"></script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>PCF CONVERTER V5.91b — Piping Component File Generator</title>
+  <meta name="description"
+    content="Convert CSV/Excel piping data to CAESAR II PCF format. Browser-based, no installation.">
+
+  <!-- Import Map for Main Branch (Source) Deployment -->
+
+
+  <!-- App Styles -->
+  <link rel="stylesheet" href="css/app.css">
+</head>
+
+<body>
+
+  <!-- ── Loading Overlay ────────────────────────────────────────── -->
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loading-text">Processing…</div>
+  </div>
+
+  <!-- ── Toast Notifications ───────────────────────────────────── -->
+  <div id="toast-container"></div>
+
+  <!-- ── App Header ─────────────────────────────────────────────── -->
+  <header id="app-header">
+    <div class="app-title">
+      <div class="logo-mark" aria-hidden="true"></div>
+      <h1>PCF CONVERTER V5.91b</h1>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary btn-sm" id="btn-theme-toggle" title="Switch Theme">
+        <!-- Icon injected by ThemeManager -->
+      </button>
+      <button class="btn btn-secondary btn-sm" id="btn-reset-all" title="Clear all data and start over">
+        ↺ Reset
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Tab Navigation ─────────────────────────────────────────── -->
+  <nav id="tab-nav" role="tablist">
+    <button class="nav-btn active" id="tab-input" role="tab" title="Input Stage">
+      <i class="icon-input"></i> <span>Input</span>
+    </button>
+    <button class="nav-btn" id="tab-mapping" role="tab" title="Mapping Stage">
+      <i class="icon-mapping"></i> <span>Enhanced Mapping</span>
+    </button>
+    <button class="nav-btn" id="tab-table-view" role="tab" title="PCF in Table Form">
+      <i class="icon-table"></i> <span>PCF in Table Form</span>
+    </button>
+    <button class="nav-btn" id="tab-validate" role="tab" title="Validation Report">
+      <i class="icon-validate"></i> <span>Validate</span>
+    </button>
+    <button class="nav-btn" id="tab-sequence" role="tab" title="Component Sequence" style="display:none">
+      <i class="icon-sequence"></i> <span>Sequence</span>
+    </button>
+    <button class="nav-btn" id="tab-preview" role="tab" title="PCF Preview" style="display:none">
+      <i class="icon-preview"></i> <span>Preview</span>
+    </button>
+    <button class="nav-btn" id="tab-output" role="tab" title="Generate PCF">
+      <i class="icon-output"></i> <span>Output</span>
+    </button>
+    <button class="nav-btn" id="tab-viewer" role="tab" title="Visualize PCF">
+      <i class="icon-viewer"></i> <span>3D Viewer</span>
+    </button>
+    <button class="nav-btn" id="tab-smart_fixer" role="tab" title="3D Smart fixer & Visualization">
+      <i class="icon-viewer"></i> <span>3D Smart fixer</span>
+    </button>
+    <button class="nav-btn" id="tab-master-data" role="tab" title="Master Data Management">
+      <i class="icon-database"></i> <span>Master Data</span>
+    </button>
+    <button class="nav-btn" id="tab-debug" role="tab" title="Debug">
+      <span style="font-family:emoji">🐞</span> <span>Debug</span>
+    </button>
+    <button class="nav-btn" id="tab-config" role="tab" title="Settings">
+      <i class="icon-config"></i> <span>Config</span>
+    </button>
+  </nav>
+
+  <!-- ── Main Content ───────────────────────────────────────────── -->
+  <main id="app-main">
+
+    <!-- ═══════════════════════════════════════════
+       ① INPUT TAB
+       ═══════════════════════════════════════════ -->
+    <section id="panel-input" class="tab-panel" role="tabpanel">
+
+      <div class="flex gap-1 items-center mb-1">
+        <h2 style="font-family:var(--font-code);font-size:0.9rem;color:var(--amber)">INPUT DATA</h2>
+        <span id="filename-label" class="text-muted text-xs text-code" style="margin-left:auto"></span>
+      </div>
+
+      <!-- File Upload / Drop Zone -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">File Upload</span>
+          <div class="flex gap-1">
+            <button class="btn btn-secondary btn-sm" id="btn-psi-correction">PSI Correction: OFF</button>
+            <button class="btn btn-secondary btn-sm" id="btn-ray-mode" title="Ray Mode — non-pipe components only in viewer">⚡ Ray Mode: OFF</button>
+            <button class="btn btn-secondary btn-sm" id="btn-paste-toggle">⌗ Paste CSV</button>
+            <button class="btn btn-secondary btn-sm" id="btn-append-toggle">＋ Append CSV</button>
+            <button class="btn btn-secondary btn-sm" id="btn-clear">✕ Clear</button>
+            <button class="btn btn-primary btn-sm" id="btn-input-next" style="margin-left:0.5rem">Next →</button>
+          </div>
+        </div>
+        <div class="panel-body">
+
+          <input type="file" id="file-input" accept=".csv,.xlsx,.xls,.txt" style="display:none">
+
+          <div id="drop-zone">
+            <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.338-2.32 2.75 2.75 0 0 1 3.072 2.955A2.75 2.75 0 0 1 18 19.5H6.75Z" />
+            </svg>
+            <div class="drop-text-main">Drop CSV or Excel file here</div>
+            <div class="drop-text-sub">or click to browse &nbsp;·&nbsp; <span>.csv &nbsp; .xlsx &nbsp; .xls</span></div>
+          </div>
+
+          <!-- Paste Area -->
+          <div id="paste-area">
+            <textarea id="paste-textarea"
+              placeholder="Paste tab-separated or comma-separated data here…&#10;First row should be column headers."></textarea>
+            <div class="flex gap-1 mt-1">
+              <button class="btn btn-primary btn-sm" id="btn-parse">▶ Parse</button>
+            </div>
+          </div>
+
+          <!-- Append Area -->
+          <div id="append-area">
+            <div class="flex gap-1 items-center mb-1" style="color:var(--amber);font-size:0.75rem;font-weight:600">
+              ＋ APPEND MODE — rows will be added to the existing dataset
+            </div>
+            <textarea id="append-textarea"
+              placeholder="Paste additional CSV/TSV rows here…&#10;Headers are optional — they will be mapped automatically."></textarea>
+            <div class="flex gap-1 mt-1">
+              <button class="btn btn-primary btn-sm" id="btn-append-parse">▶ Append</button>
+            </div>
+          </div>
+
+          <!-- Error / Warning Banner -->
+          <div id="input-error" style="display:none" class="issue-item ERROR mt-1"></div>
+
+        </div>
+      </div>
+
+      <!-- Parse Stats -->
+      <div id="parse-stats" style="display:none"></div>
+
+      <!-- Header Mapping -->
+      <div id="header-map-wrap" style="display:none" class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Column Header Mapping</span>
+          <span class="text-muted text-xs">Unrecognised headers shown in red — add aliases in ⚙ CONFIG</span>
+        </div>
+        <div class="panel-body" style="padding:0">
+          <div class="data-table-wrap">
+            <table class="data-table" id="header-map-table">
+              <thead>
+                <tr>
+                  <th>CSV Header</th>
+                  <th>Canonical Name</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Preview -->
+      <div id="preview-wrap" style="display:none" class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Data Preview</span>
+          <span class="text-muted text-xs" id="preview-count"></span>
+        </div>
+        <div class="panel-body" style="padding:0;overflow:auto">
+          <div class="data-table-wrap" style="max-height:360px">
+            <table class="data-table" id="preview-table"></table>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+       ② MAPPING TAB
+       ═══════════════════════════════════════════ -->
+    <section id="panel-mapping" class="tab-panel" role="tabpanel">
+      <div class="flex gap-1 items-center mb-1">
+        <h2 style="font-family:var(--font-code);font-size:0.9rem;color:var(--amber)">COMPONENT MAPPING</h2>
+        <div id="mapping-convert-msg" class="issue-item INFO" style="display:none;margin-left:1rem;flex:1"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Component Groups</span>
+          <div class="flex gap-1">
+            <button class="btn btn-secondary btn-sm" id="btn-refresh-mapping">↻ Refresh</button>
+            <button class="btn btn-secondary btn-sm" id="btn-regroup">↺ Re-group</button>
+            <button class="btn btn-primary btn-sm" id="btn-convert">▶ Next →</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div id="mapping-empty" class="text-muted text-sm" style="padding:2rem;text-align:center">
+            Load and parse a CSV file in the INPUT tab first.
+          </div>
+          <div id="mapping-table-wrap" style="display:none">
+            <div class="data-table-wrap">
+              <table class="data-table" id="mapping-table">
+                <thead>
+                  <tr>
+                    <th>RefNo</th>
+                    <th>CSV Type</th>
+                    <th>PCF Keyword</th>
+                    <th>Points</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+       ③ VALIDATE TAB
+       ═══════════════════════════════════════════ -->
+    <section id="panel-validate" class="tab-panel" role="tabpanel">
+      <div class="flex gap-1 items-center mb-1">
+        <h2 style="font-family:var(--font-code);font-size:0.9rem;color:var(--amber)">VALIDATION REPORT</h2>
+        <div class="flex gap-1" style="margin-left:auto">
+          <button class="btn btn-primary btn-sm" id="btn-run-validation">▶ Run Validation</button>
+          <div style="width:1px;background:var(--steel);margin:0 0.25rem"></div>
+          <button class="btn btn-secondary btn-sm" id="btn-filter-all" data-filter="all">All</button>
+          <button class="btn btn-danger    btn-sm" id="btn-filter-error" data-filter="ERROR">Errors</button>
+          <button class="btn btn-secondary btn-sm" id="btn-filter-warning" data-filter="WARNING">Warnings</button>
+          <button class="btn btn-secondary btn-sm" id="btn-filter-info" data-filter="INFO">Info</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <!-- Issue list -->
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">Issues</span></div>
+          <div class="panel-body">
+            <div id="validate-empty" class="text-muted text-sm" style="text-align:center;padding:2rem">
+              Run validation to see issues here.
+            </div>
+            <div id="issue-list" class="issue-list" style="display:none"></div>
+          </div>
+        </div>
+        <!-- Issue detail -->
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">Detail & Fix</span></div>
+          <div class="panel-body">
+            <div id="issue-detail" class="text-muted text-sm" style="text-align:center;padding:2rem">
+              Click an issue to see details and fix options.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+       ④ SEQUENCE TAB
+       ═══════════════════════════════════════════ -->
+    <section id="panel-sequence" class="tab-panel" role="tabpanel" style="display:none">
+      <div class="flex gap-1 items-center mb-1">
+        <h2 style="font-family:var(--font-code);font-size:0.9rem;color:var(--amber)">COMPONENT SEQUENCE</h2>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Routing Order</span>
+          <div class="flex gap-1">
+            <button class="btn btn-secondary btn-sm" id="btn-sort-coords">⇅ Sort by Coordinates</button>
+            <button class="btn btn-primary    btn-sm" id="btn-apply-sequence" disabled>✓ Apply Order</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <p class="text-muted text-sm mb-2">
+            Components are shown in PCF output order. Use "Sort by Coordinates" to re-order by nearest-neighbour from
+            the START node. Drag rows to manually reorder.
+          </p>
+          <div id="sequence-empty" class="text-muted text-sm" style="text-align:center;padding:2rem">
+            Convert components first in the MAPPING tab.
+          </div>
+          <div id="sequence-list" style="display:none"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+       ⑤ PREVIEW TAB
+       ═══════════════════════════════════════════ -->
+    <section id="panel-preview" class="tab-panel" role="tabpanel" style="display:none">
+      <div class="flex gap-1 items-center mb-1">
+        <h2 style="font-family:var(--font-code);font-size:0.9rem;color:var(--amber)">PCF PREVIEW</h2>
+        <div class="flex gap-1" style="margin-left:auto">
+          <button class="btn btn-secondary btn-sm" id="btn-validate-syntax">⚑ Validate Syntax</button>
+          <button class="btn btn-secondary btn-sm" id="btn-copy-pcf">⎘ Copy</button>
+        </div>
+      </div>
+      <div class="panel" style="flex:1">
+        <div class="panel-header">
+          <span class="panel-title">Generated PCF</span>
+          <span class="text-muted text-xs" id="pcf-line-count"></span>
+        </div>
+        <div class="panel-body" style="padding:0">
+          <div id="pcf-preview" style="min-height:400px">
+            <span
+              style="color:var(--text-muted);font-family:var(--font-code);font-size:0.8rem;display:block;padding:2rem;text-align:center">
+              No PCF generated yet. Process input data first.
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+       ⑥ OUTPUT TAB
+       ═══════════════════════════════════════════ -->
+    <section id="panel-output" class="tab-panel" role="tabpanel">
+      <div class="flex gap-1 items-center mb-1">
+        <h2 style="font-family:var(--font-code);font-size:0.9rem;color:var(--amber)">OUTPUT</h2>
+      </div>
+
+      <!-- Generate + Download -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Generate PCF</span>
+        </div>
+        <div class="panel-body" style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center">
+          <button class="btn btn-warning btn-sm" id="btn-generate" style="display:none">⚙ Generate Phase 1 PCF</button>
+          <button class="btn btn-primary btn-sm" id="btn-generate-final" style="display:none">⚙ Generate Final PCF with all Attributes</button>
+          <button class="btn btn-secondary btn-sm" id="btn-show-output-pcf">📄 Show Output PCF</button>
+          <button class="btn btn-warning btn-sm" id="btn-run-sanitizer">🛡️ Run Sanitizer</button>
+          <button class="btn btn-success btn-sm" id="btn-download-pcf" disabled style="display:none">↓ Download .pcf</button>
+          <span id="validation-summary" class="text-muted text-sm"></span>
+        </div>
+        <div id="output-error" style="display:none;margin-top:0.75rem" class="issue-item ERROR"></div>
+      </div>
+
+      <!-- Split Layout: PCF Preview (Left) / Sanitizer Logs (Right) -->
+      <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+
+        <!-- PCF Preview -->
+        <div class="panel" style="flex:2; min-width:300px;">
+          <div class="panel-header">
+            <span class="panel-title">PCF Preview</span>
+            <button class="btn btn-secondary btn-sm" id="btn-copy-output-pcf">⎘ Copy</button>
+          </div>
+          <div class="panel-body" style="padding:0">
+            <div id="pcf-preview-output" style="
+            font-family:var(--font-code);font-size:0.75rem;
+            background:var(--bg-0);padding:1rem;
+            min-height:300px;max-height:500px;overflow:auto;
+            color:var(--text-primary);
+            white-space:pre;
+          ">
+              <span style="color:var(--text-muted)">Generate PCF to see preview...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sanitizer Logs -->
+        <div class="panel" style="flex:1; min-width:300px; display:flex; flex-direction:column;">
+          <div class="panel-header">
+            <span class="panel-title">Sanitizer Output Logs</span>
+          </div>
+          <div class="panel-body" style="padding:0; flex:1;">
+            <div id="pcf-sanitizer-logs" style="
+            font-family:var(--font-code);font-size:0.7rem;
+            background:#111;padding:1rem;
+            min-height:300px;max-height:500px;overflow:auto;
+            color:#0f0;
+            white-space:pre-wrap;
+          ">
+              <span style="color:var(--text-muted)">Awaiting Sanitizer Execution...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Log Viewer -->
+      <div class="panel" style="flex:1">
+        <div class="panel-header">
+          <span class="panel-title">Conversion Log</span>
+          <button class="btn btn-secondary btn-sm" id="btn-download-log">↓ Download Log</button>
+        </div>
+        <div class="panel-body" style="padding:0">
+          <div id="log-output" style="
+          font-family:var(--font-code);font-size:0.75rem;
+          background:var(--bg-0);padding:1rem;
+          min-height:200px;max-height:400px;overflow:auto;
+          color:var(--text-muted);
+        ">
+            <span style="color:var(--text-muted)">No log entries yet.</span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+       ⑦ 3D VIEWER TAB
+       ═══════════════════════════════════════════ -->
+    <section id="panel-viewer" class="tab-panel" role="tabpanel">
+
+      <div class="flex gap-1 items-center mb-1">
+        <h2 style="font-family:var(--font-code);font-size:0.9rem;color:var(--amber)">3D VIEWER</h2>
+        <div class="flex gap-1" style="margin-left:auto">
+          <span id="viewer-status" class="text-muted text-sm"></span>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:1rem;flex:1;min-height:0">
+
+        <!-- Left: PCF Input -->
+        <div class="panel" style="width:300px;display:flex;flex-direction:column;flex-shrink:0">
+          <div class="panel-header">
+            <span class="panel-title">PCF Input</span>
+            <div class="flex gap-1">
+              <button class="btn btn-secondary btn-sm" id="btn-viewer-open"
+                title="Open a .pcf file from disk">📂</button>
+              <button class="btn btn-secondary btn-sm" id="btn-viewer-clear" title="Clear scene and reset"
+                style="padding:2px 7px">🗑</button>
+              <div class="btn-group">
+                <button class="btn btn-secondary btn-sm" id="btn-viewer-load-pass1" title="Load 1st Pass PCF"
+                  disabled>1st</button>
+                <button class="btn btn-secondary btn-sm" id="btn-viewer-ray-mode"
+                  title="Ray Mode — show non-pipe components only" disabled>⚡ Ray</button>
+                <button class="btn btn-secondary btn-sm" id="btn-viewer-load" title="Load Final PCF">Final</button>
+              </div>
+              <input type="file" id="viewer-file-input" accept=".pcf,.txt" style="display:none">
+            </div>
+          </div>
+          <div class="panel-body" style="padding:0;flex:1;display:flex;flex-direction:column">
+            <textarea id="viewer-pcf-input"
+              placeholder="Paste PCF content here, or click Load PCF to use the generated output…" style="
+            flex:1;width:100%;border:none;resize:none;outline:none;
+            background:var(--bg-0);color:var(--text-code);
+            font-family:var(--font-code);font-size:0.75rem;
+            padding:0.75rem;
+          "></textarea>
+          </div>
+          <div style="padding:0.5rem;border-top:1px solid var(--steel);display:flex;gap:0.5rem;align-items:center">
+            <button class="btn btn-primary btn-sm" id="btn-viewer-generate" style="margin-left:auto">&#9654; Generate
+              3D</button>
+          </div>
+          <!-- Axis direction config -->
+          <div
+            style="padding:0.35rem 0.5rem;border-top:1px solid var(--steel);display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;font-size:0.72rem;color:var(--text-muted)">
+            <span style="font-weight:600;color:var(--text-secondary)">Axis:</span>
+            <label>X+ <select id="ax-xpos"
+                style="font-size:0.7rem;background:var(--bg-panel);color:var(--text-primary);border:1px solid var(--steel);border-radius:3px">
+                <option>East</option>
+                <option>West</option>
+                <option>North</option>
+                <option>South</option>
+                <option>Up</option>
+                <option>Down</option>
+              </select></label>
+            <label>X- <select id="ax-xneg"
+                style="font-size:0.7rem;background:var(--bg-panel);color:var(--text-primary);border:1px solid var(--steel);border-radius:3px">
+                <option>West</option>
+                <option>East</option>
+                <option>North</option>
+                <option>South</option>
+                <option>Up</option>
+                <option>Down</option>
+              </select></label>
+            <label>Y+ <select id="ax-ypos"
+                style="font-size:0.7rem;background:var(--bg-panel);color:var(--text-primary);border:1px solid var(--steel);border-radius:3px">
+                <option>North</option>
+                <option>South</option>
+                <option>East</option>
+                <option>West</option>
+                <option>Up</option>
+                <option>Down</option>
+              </select></label>
+            <label>Y- <select id="ax-yneg"
+                style="font-size:0.7rem;background:var(--bg-panel);color:var(--text-primary);border:1px solid var(--steel);border-radius:3px">
+                <option>South</option>
+                <option>North</option>
+                <option>East</option>
+                <option>West</option>
+                <option>Up</option>
+                <option>Down</option>
+              </select></label>
+            <label>Z+ <select id="ax-zpos"
+                style="font-size:0.7rem;background:var(--bg-panel);color:var(--text-primary);border:1px solid var(--steel);border-radius:3px">
+                <option>Up</option>
+                <option>Down</option>
+                <option>East</option>
+                <option>West</option>
+                <option>North</option>
+                <option>South</option>
+              </select></label>
+            <label>Z- <select id="ax-zneg"
+                style="font-size:0.7rem;background:var(--bg-panel);color:var(--text-primary);border:1px solid var(--steel);border-radius:3px">
+                <option>Down</option>
+                <option>Up</option>
+                <option>East</option>
+                <option>West</option>
+                <option>North</option>
+                <option>South</option>
+              </select></label>
+            <script>
+              (function () {
+                const ids = ['ax-xpos', 'ax-xneg', 'ax-ypos', 'ax-yneg', 'ax-zpos', 'ax-zneg'];
+                const keys = ['X_POS', 'X_NEG', 'Y_POS', 'Y_NEG', 'Z_POS', 'Z_NEG'];
+                ids.forEach((id, i) => {
+                  document.addEventListener('DOMContentLoaded', () => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    el.addEventListener('change', () => {
+                      window.__PCF_AXIS_CONFIG__ = window.__PCF_AXIS_CONFIG__ || {};
+                      window.__PCF_AXIS_CONFIG__[keys[i]] = el.value;
+                    });
+                  });
+                });
+              })();
+            </script>
+          </div>
+        </div>
+
+        <!-- Centre: Visualization -->
+        <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+          <!-- View toggle -->
+          <div style="display:flex;gap:0;margin-bottom:0.5rem;align-items:center">
+            <button class="btn btn-sm viewer-toggle-btn active" id="btn-viewer-3d">🧊 3D View</button>
+            <button class="btn btn-sm viewer-toggle-btn" id="btn-viewer-table">📊 3DV Data Table</button>
+            <button class="btn btn-sm viewer-toggle-btn" id="btn-viewer-centre" title="Re-centre camera on geometry"
+              style="margin-left:0.25rem">⊙ Centre</button>
+            <button class="btn btn-sm viewer-toggle-btn" id="btn-viewer-fullscreen" style="margin-left:auto"
+              title="Full Screen">⛶ Full Screen</button>
+            <button id="btn-export-pcf-from-table"
+              style="display:none;margin-left:0.5rem;background:var(--green-ok);border:none;border-radius:4px;color:#fff;cursor:pointer;padding:3px 10px;font-size:0.78rem;font-weight:600"
+              title="Export PCF from current Data Table state">↓ Export as PCF</button>
+            <!-- 3DV PCF Builder: Refresh PCF button -->
+            <button id="btn-refresh-pcf"
+              style="margin-left:0.5rem;background:#7c3aed;border:none;border-radius:4px;color:#fff;cursor:pointer;padding:3px 10px;font-size:0.78rem;font-weight:600"
+              title="Apply Fixing Actions from Data Table and rebuild PCF">⚙️ Apply Fixing Action</button>
+            <button id="btn-table-copy" title="Copy table as TSV to clipboard"
+              style="margin-left:0.5rem;background:none;border:1px solid var(--steel);border-radius:4px;color:var(--text-muted);cursor:pointer;padding:2px 7px;font-size:0.78rem"
+              onclick="(function(){
+                const tbl = document.getElementById('pcf-data-table');
+                if(!tbl){alert('Generate the table first.');return;}
+                const rows=[...tbl.querySelectorAll('tr')].map(r=>[...r.querySelectorAll('th,td')].map(c=>c.innerText.replace(/\t/g,' ')).join('\t'));
+                navigator.clipboard.writeText(rows.join('\n')).then(()=>{
+                  const b=document.getElementById('btn-table-copy');
+                  b.textContent='✓ Copied';setTimeout(()=>b.textContent='⎘ Copy',1500);
+                });
+              })()">⎘ Copy</button>
+          </div>
+
+          <!-- Canvas Container (Legacy) -->
+          <div id="viewer-canvas-wrap"
+            style="display:none; flex:1;min-height:400px;border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--steel);position:relative">
+          </div>
+
+          <!-- React Editor Container -->
+          <div id="react-root"
+            style="flex:1;min-height:400px;border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--steel);position:relative">
+          </div>
+
+          <!-- Table Container -->
+          <div id="viewer-table-wrap"
+            style="flex:1;min-height:400px;display:none;border-radius:var(--radius-md);overflow:auto;border:1px solid var(--steel)">
+          </div>
+
+          <!-- Log Panel -->
+          <div class="panel" style="margin-top:0.5rem;max-height:150px">
+            <div class="panel-header">
+              <span class="panel-title">System Logs</span>
+            </div>
+            <div class="panel-body" style="padding:0.5rem;overflow-y:auto;max-height:110px">
+              <div id="viewer-log" style="font-family:var(--font-code);font-size:0.72rem">
+                <span style="color:var(--text-muted)">No log entries yet.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3DV Smart Actions Log Panel (collapsible) -->
+          <div id="smart-actions-panel"
+            style="display:none;margin-top:0.5rem;border:1px solid #7c3aed;border-radius:var(--radius-md);background:#0f0a1e;overflow:hidden">
+            <div id="smart-actions-header"
+              style="display:flex;align-items:center;gap:0.5rem;padding:6px 12px;cursor:pointer;user-select:none;border-bottom:1px solid #7c3aed">
+              <span class="sa-chevron" style="color:#a78bfa;font-size:0.8rem">▶</span>
+              <span style="color:#a78bfa;font-size:0.78rem;font-weight:700">⚡ Smart Actions</span>
+              <span id="smart-actions-count"
+                style="margin-left:auto;font-size:0.7rem;color:#64748b;font-family:monospace">0 actions</span>
+            </div>
+            <div id="smart-actions-body" style="display:none;padding:8px">
+              <div id="smart-actions-log"
+                style="font-family:var(--font-code);font-size:0.72rem;max-height:180px;overflow-y:auto">
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+       ⑧ PCF TABLE TAB
+       ═══════════════════════════════════════════ -->
+    <section id="panel-table-view" class="tab-panel" role="tabpanel">
+      <div class="flex gap-1 items-center mb-1">
+        <h2 style="font-family:var(--font-code);font-size:0.9rem;color:var(--amber)">PCF IN TABLE FORM</h2>
+        <div class="flex gap-1 items-center flex-wrap" style="margin-left:auto;gap:0.4rem;">
+          <label class="text-muted text-xs" for="pcf-table-tolerance">Tolerance (mm):</label>
+          <input class="config-input" id="pcf-table-tolerance" type="number" step="1" value="6"
+            style="width:55px;font-size:0.75rem">
+          <button class="btn btn-secondary btn-sm" id="btn-refresh-phase1" title="Re-process Phase 1 from source data" style="display:none">⚡ Refresh Phase 1</button>
+          <button class="btn btn-secondary btn-sm" id="btn-refresh-line-key" title="Re-fetch ColumnX1 (Line No.) from Line Dump by coordinate match ±25mm">↺ Refresh Line Key</button>
+          <label style="display:flex;align-items:center;gap:3px;font-size:0.75rem;color:var(--text-muted);cursor:pointer;">
+            <input type="checkbox" id="chk-overwrite" style="cursor:pointer;"> Overwrite
+          </label>
+          <button class="btn btn-secondary btn-sm" id="btn-refresh-table">↺ Refresh</button>
+          <select id="select-ca-col" class="config-input" style="font-size:0.75rem;padding:0.2rem 0.4rem;max-width:160px;" title="Select column for Refresh entire Col.">
+            <option value="">Select CA ▼</option>
+            <option value="P1 (ATTR1)">CA1 — Pressure</option>
+            <option value="T1 (ATTR2)">CA2 — Temperature</option>
+            <option value="Material (ATTR3)">CA3 — Material</option>
+            <option value="Wall Thk (ATTR4)">CA4 — Wall Thk</option>
+            <option value="Ins Thk (ATTR5)">CA5 — Ins Thk</option>
+            <option value="Ins Den (ATTR6)">CA6 — Ins Den</option>
+            <option value="Corr (ATTR7)">CA7 — Corrosion</option>
+            <option value="Weight (ATTR8)">CA8 — Weight</option>
+            <option value="Density (ATTR9)">CA9 — Density</option>
+            <option value="HP (ATTR10)">CA10 — HP</option>
+            <option value="Piping Class">Piping Class</option>
+            <option value="Rating">Rating</option>
+            <option value="Rigid Type">Rigid Type</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" id="btn-refresh-col-overwrite" title="Overwrite selected column for all rows using master data">↺ Refresh entire Col. (overwrite)</button>
+          <button class="btn btn-primary btn-sm" id="btn-regenerate-pcf" style="background:var(--green-ok)">⟳ Regenerate PCF</button>
+          <button class="btn btn-secondary btn-sm" id="btn-export-phase1" title="Download original uploaded PCF (Phase 1)" style="display:none">📥 Export Phase 1 PCF</button>
+          <button class="btn btn-primary btn-sm" id="btn-export-table">↓ Export CSV</button>
+          <button class="btn btn-primary btn-sm" id="btn-next-phase2" style="background:var(--amber);font-weight:600">Next →</button>
+        </div>
+      </div>
+      <div class="panel" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+        <div class="panel-body" style="padding:0;flex:1;overflow:auto" id="pcf-table-container">
+          <div style="padding:2rem;text-align:center;color:var(--text-muted)">
+            No data available. Convert components first.
+          </div>
+        </div>
+      </div>
+
+      <!-- Diagnostic Log Panel -->
+      <div class="panel" style="max-height:250px;margin-top:0.5rem">
+        <div class="panel-header">
+          <span class="panel-title">Mapping Diagnostic Log</span>
+          <div class="flex gap-1">
+            <button class="btn btn-secondary btn-sm" id="btn-copy-mapping-log" title="Copy Log to Clipboard">⎘
+              Copy</button>
+            <button class="btn btn-secondary btn-sm" id="btn-clear-mapping-log">Clear</button>
+          </div>
+        </div>
+        <div class="panel-body" style="padding:0.5rem;overflow-y:auto;max-height:200px">
+          <div id="mapping-diagnostic-log" style="font-family:var(--font-code);font-size:0.72rem;white-space:pre-wrap">
+            <span style="color:var(--text-muted)">Click Refresh to see detailed mapping diagnostics...</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+       ⑨ CONFIG TAB
+       ═══════════════════════════════════════════ -->
+    <section id="panel-config" class="tab-panel" role="tabpanel">
+
+      <div class="flex gap-1 items-center mb-1">
+        <h2 style="font-family:var(--font-code);font-size:0.9rem;color:var(--amber)">CONFIGURATION</h2>
+        <div class="flex gap-1" style="margin-left:auto">
+          <button class="btn btn-secondary btn-sm" id="btn-export-config">↓ Export JSON</button>
+          <button class="btn btn-secondary btn-sm" id="btn-import-config">↑ Import JSON</button>
+          <button class="btn btn-danger    btn-sm" id="btn-reset-config">↺ Reset Defaults</button>
+        </div>
+      </div>
+
+      <!-- ── Bucket A: Input & Import ──────────────────────────────── -->
+      <h3 class="config-bucket-header">Input & Import</h3>
+      <div class="config-bucket">
+
+        <!-- Input & Parse Settings -->
+        <div class="config-section">
+          <div class="config-section-header">
+            <span class="config-section-title">Input & Parse Settings</span>
+            <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+          <div class="config-section-body">
+            <p class="text-muted text-sm mb-2">Controls how CSV/TSV files are parsed and how input data is cleaned
+              before processing.</p>
+            <div class="config-row">
+              <label class="config-label"
+                data-tip="Use PapaParse step mode for incremental row processing. Better for files >10K rows.">Streaming
+                Parse</label>
+              <div class="toggle-wrap">
+                <button class="toggle" id="cfg-streamingParse" role="switch"></button>
+                <span class="text-muted text-xs" id="cfg-streamingParse-lbl">Disabled</span>
+              </div>
+            </div>
+            <div class="config-row">
+              <label class="config-label" data-tip="Number of rows processed per chunk in streaming mode.">Chunk
+                Size</label>
+              <input class="config-input" id="cfg-streamingChunkSize" type="number" min="100" max="5000" step="100"
+                value="500" style="max-width:100px">
+            </div>
+            <div class="config-row">
+              <label class="config-label"
+                data-tip="Automatically load the exact Piping Class specifications for sizes found in the parsed data to save memory.">Auto
+                Load Piping Class Masters</label>
+              <div class="toggle-wrap">
+                <button class="toggle" id="cfg-autoLoadPipingClassMasters" role="switch"></button>
+                <span class="text-muted text-xs" id="cfg-autoLoadPipingClassMasters-lbl">Disabled</span>
+              </div>
+            </div>
+            <div class="config-row">
+              <label class="config-label"
+                data-tip="Automatically load the default Weight database and PCF Material Map on startup.">Auto Load
+                Weights & Material Map</label>
+              <div class="toggle-wrap">
+                <button class="toggle" id="cfg-autoLoadWeightsAndMatMap" role="switch"></button>
+                <span class="text-muted text-xs" id="cfg-autoLoadWeightsAndMatMap-lbl">Disabled</span>
+              </div>
+            </div>
+            <hr style="border:0;border-top:1px solid var(--steel);margin:0.75rem 0;">
+            <p class="text-muted text-xs mb-1" style="font-weight:600;letter-spacing:0.05em;">SANITIZATION</p>
+            <div class="config-row">
+              <label class="config-label"
+                data-tip="Trim leading/trailing whitespace from all cell values and headers.">Trim Whitespace</label>
+              <div class="toggle-wrap">
+                <button class="toggle on" id="cfg-san-trim" role="switch"></button>
+                <span class="text-muted text-xs" id="cfg-san-trim-lbl">Enabled</span>
+              </div>
+            </div>
+            <div class="config-row">
+              <label class="config-label"
+                data-tip="Remove UTF-8 BOM character (&#xFEFF;) from start of file. Common in Excel exports.">Strip
+                BOM</label>
+              <div class="toggle-wrap">
+                <button class="toggle on" id="cfg-san-bom" role="switch"></button>
+                <span class="text-muted text-xs" id="cfg-san-bom-lbl">Enabled</span>
+              </div>
+            </div>
+            <div class="config-row">
+              <label class="config-label"
+                data-tip="Convert smart quotes (''), em-dashes (—), and non-breaking spaces to standard ASCII.">Normalize
+                Unicode</label>
+              <div class="toggle-wrap">
+                <button class="toggle on" id="cfg-san-unicode" role="switch"></button>
+                <span class="text-muted text-xs" id="cfg-san-unicode-lbl">Enabled</span>
+              </div>
+            </div>
+            <div class="config-row">
+              <label class="config-label"
+                data-tip="Collapse multiple consecutive spaces in headers to a single space.">Collapse Spaces</label>
+              <div class="toggle-wrap">
+                <button class="toggle on" id="cfg-san-collapse" role="switch"></button>
+                <span class="text-muted text-xs" id="cfg-san-collapse-lbl">Enabled</span>
+              </div>
+            </div>
+            <div class="config-row">
+              <label class="config-label"
+                data-tip="Force all headers to lowercase before alias matching. Useful for case-sensitive systems.">Lowercase
+                Headers</label>
+              <div class="toggle-wrap">
+                <button class="toggle" id="cfg-san-lowercase" role="switch"></button>
+                <span class="text-muted text-xs" id="cfg-san-lowercase-lbl">Disabled</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Component Type Map -->
+        <div class="config-section">
+          <div class="config-section-header">
+            <span class="config-section-title">Component Type Map (CSV → PCF)</span>
+            <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+          <div class="config-section-body">
+            <p class="text-muted text-sm mb-2">Map your CSV "Type" column codes to PCF keywords. Add rows for custom
+              types.</p>
+            <div class="data-table-wrap">
+              <table class="data-table" id="type-map-table">
+                <thead>
+                  <tr>
+                    <th>CSV Type Code</th>
+                    <th>PCF Keyword</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="type-map-body"></tbody>
+              </table>
+            </div>
+            <button class="btn btn-secondary btn-sm mt-1" id="btn-add-type">+ Add Row</button>
+          </div>
+        </div>
+
+        <!-- Header Aliases -->
+        <div class="config-section">
+          <div class="config-section-header">
+            <span class="config-section-title">Column Header Aliases</span>
+            <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+          <div class="config-section-body">
+            <p class="text-muted text-sm mb-2">Comma-separated aliases for each canonical column name. Case-insensitive.
+            </p>
+            <div id="alias-editor"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Bucket B: Coordinate Processing ──────────────────────── -->
+      <h3 class="config-bucket-header">Coordinate Processing</h3>
+      <div class="config-bucket">
+
+        <!-- Coordinate Settings -->
+        <div class="config-section">
+          <div class="config-section-header">
+            <span class="config-section-title">Coordinate Settings</span>
+            <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+          <div class="config-section-body">
+            <div class="config-row">
+              <label class="config-label"
+                data-tip="Maximum distance (mm) between endpoints for them to be considered connected">Continuity
+                Tolerance (mm)</label>
+              <input class="config-input" id="cfg-tolerance" type="number" step="0.1" min="0" value="25.0">
+            </div>
+            <div class="config-row">
+              <label class="config-label"
+                data-tip="Maximum length (mm) for a pipe segment. Longer segments will be split. Set to 0 to disable.">Max
+                Segment Length (mm)</label>
+              <input class="config-input" id="cfg-maxSegmentLength" type="number" step="100" min="0" value="0">
+            </div>
+            <div class="config-row">
+              <label class="config-label">Decimal Places</label>
+              <input class="config-input" id="cfg-decimals" type="number" min="1" max="8" value="4">
+            </div>
+            <div class="config-row">
+              <label class="config-label">Include MESSAGE-SQUARE</label>
+              <div class="toggle-wrap">
+                <button class="toggle on" id="cfg-msgSquare" role="switch"></button>
+                <span class="text-muted text-xs" id="cfg-msgSquare-lbl">Enabled</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Overlap Resolution -->
+        <div id="cfg-overlap-resolution-container"></div>
+
+        <!-- Placeholders for dynamically rendered sections -->
+        <div id="cfg-topology-settings-container"></div>
+        <div id="cfg-pipeline-mode-container"></div>
+        <div id="cfg-common-3d-container"></div>
+        <div id="cfg-ray-shooter-container"></div>
+        <div id="cfg-final-pass-gap-filling-container"></div>
+        <div id="cfg-smart-validator-container"></div>
+        <div id="cfg-pcf-sanitizer-container"></div>
+
+      </div>
+
+      <!-- ── Bucket C: Mapping & Output ───────────────────────────── -->
+      <h3 class="config-bucket-header">Mapping & Output</h3>
+      <div class="config-bucket">
+
+        <!-- Output Settings -->
+        <div class="config-section open">
+          <div class="config-section-header">
+            <span class="config-section-title">Output Settings</span>
+            <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+          <div class="config-section-body">
+            <div class="config-row">
+              <label class="config-label" for="cfg-pipelineRef">Pipeline Reference</label>
+              <input class="config-input" id="cfg-pipelineRef" type="text" placeholder="e.g. TMP-2 or NEWLINE NO.">
+            </div>
+            <div class="config-row">
+              <label class="config-label" for="cfg-pcfCanonicalName">PCF Canonical Name</label>
+              <input class="config-input" id="cfg-pcfCanonicalName" type="text"
+                placeholder="e.g. PROCESS, UTILITY (PCF header prefix)">
+            </div>
+            <div class="config-row">
+              <label class="config-label" for="cfg-projectId">Project Identifier</label>
+              <input class="config-input" id="cfg-projectId" type="text" placeholder="P1">
+            </div>
+            <div class="config-row">
+              <label class="config-label" for="cfg-area">Area</label>
+              <input class="config-input" id="cfg-area" type="text" placeholder="A1">
+            </div>
+            <div class="config-row">
+              <label class="config-label" for="cfg-lineEnding">Line Ending</label>
+              <select class="config-select" id="cfg-lineEnding">
+                <option value="CRLF">CRLF (Windows — required for CAESAR II)</option>
+                <option value="LF">LF (Unix)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- CA Definitions -->
+        <div class="config-section">
+          <div class="config-section-header">
+            <span class="config-section-title">CA Attribute Definitions</span>
+            <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+          <div class="config-section-body">
+            <p class="text-muted text-sm mb-2">COMPONENT-ATTRIBUTE mapping.</p>
+            <div id="ca-editor"></div>
+          </div>
+        </div>
+
+        <!-- Anomaly Rules -->
+        <div class="config-section">
+          <div class="config-section-header">
+            <span class="config-section-title">Anomaly Detection Rules</span>
+            <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+          <div class="config-section-body">
+            <div id="anomaly-rules-editor"></div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+       ⑩ 3D_2 VIEWER TAB (Independent Module)
+       ═══════════════════════════════════════════ -->
+    <section id="panel-smart_fixer" class="tab-panel" role="tabpanel" style="height: 100vh; overflow: hidden; padding-bottom: 0;">
+      <div class="flex gap-2 items-center mb-1" style="flex-shrink: 0;">
+        <h2 style="font-family:var(--font-code);font-size:0.9rem;color:var(--emerald)">3D SMART FIXER</h2>
+        <div class="flex gap-1" style="margin-left:auto; align-items:center;">
+          <!-- PTE Conversion Mode Options -->
+          <div style="display:flex; align-items:center; gap: 8px; margin-right: 15px; padding: 4px 8px; background: rgba(0,0,0,0.2); border-radius: 4px; border: 1px solid var(--border);">
+            <span style="font-size:0.75rem; color:var(--text-muted); font-weight:bold;">PTE Mode:</span>
+            <label style="font-size:0.75rem; display:flex; alignItems:center; gap:4px; cursor:pointer;">
+              <input type="checkbox" id="pte-sequential-cb" checked>
+              Sequential
+            </label>
+            <label style="font-size:0.75rem; display:flex; alignItems:center; gap:4px; cursor:pointer;">
+              <input type="checkbox" id="pte-linekey-cb" checked>
+              Line_Key
+            </label>
+            <select id="pte-linekey-col-select" style="font-size:0.7rem; background:var(--bg-1); color:var(--text-primary); border:1px solid var(--steel); border-radius:2px; padding:2px;">
+              <option value="Line No">Line No</option>
+              <option value="PIPELINE-REFERENCE">PIPELINE-REFERENCE</option>
+              <option value="Line_Key">Line_Key</option>
+            </select>
+          </div>
+
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer; margin:0;">
+            Import PCF
+            <input type="file" id="btn-v2-import-pcf" accept=".pcf" style="display:none;">
+          </label>
+          <button class="btn btn-secondary btn-sm" id="btn-v2-load-mock">Load Mock Data</button>
+          <button class="btn btn-primary btn-sm" id="btn-v2-generate" style="display:none;">Generate 3D</button>
+
+          <div style="width:1px; height:20px; background:var(--border); margin: 0 5px;"></div>
+
+
+          <select id="sel-line-key-filter" style="margin-right:8px; padding:4px 8px; border-radius:4px; border:1px solid var(--border-color); background:var(--bg-1); color:var(--text-primary);">
+            <option value="">All Lines</option>
+          </select>
+          <button class="btn btn-sm" id="btn-v2-run-pass-1" style="background:var(--amber); color:#000; font-weight:bold;">1️⃣ Run First Pass</button>
+
+          <button class="btn btn-sm" id="btn-v2-run-pass-2" style="background:#3b82f6; color:#fff; font-weight:bold; display:none;">🚀 Run Second Pass</button>
+        </div>
+      </div>
+
+      <!-- Split View Layout -->
+      <div style="display: flex; gap: 1rem; flex: 1; min-height: 0; max-height: 80vh;">
+        <!-- Left Column: Input and Data Table -->
+        <div style="display: flex; flex-direction: column; width: 40%; gap: 0; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; background: var(--bg-1);">
+
+          <!-- Local Tab Header -->
+          <div style="display: flex; background: var(--bg-2); border-bottom: 1px solid var(--border);">
+            <button id="btn-tab-pcf" style="flex: 1; padding: 0.5rem; background: var(--bg-1); border: none; border-bottom: 2px solid var(--emerald); color: var(--text-primary); cursor: pointer; font-size: 0.8rem; font-weight: bold;">PCF Input</button>
+            <button id="btn-tab-data" style="flex: 1; padding: 0.5rem; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--text-muted); cursor: pointer; font-size: 0.8rem; font-weight: bold;">3DV_2 Data Table</button>
+          </div>
+
+          <!-- Local Tab Content: PCF Input -->
+          <div id="panel-tab-pcf" style="flex: 1; display: flex; flex-direction: column;">
+            <textarea id="smart_fixer-pcf-input" style="flex: 1; width: 100%; background: #0d1117; color: #c9d1d9; border: none; padding: 0.5rem; font-family: monospace; resize: none;"></textarea>
+          </div>
+
+          <!-- Local Tab Content: Data Table -->
+          <div id="panel-tab-data" style="flex: 1; display: none; flex-direction: column; overflow: hidden;">
+            <div style="padding: 0.5rem; font-size: 0.8rem; font-weight: bold; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg-2);">
+              <span>Source of Truth</span>
+              <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;">
+                <label style="font-size:0.7rem; color:var(--text-muted); margin-right:2px;">Precision:</label>
+                <select id="pcf-precision-select" style="background:var(--bg-3); color:var(--text-primary); border:1px solid var(--border); font-size:0.7rem; padding:2px; border-radius:2px;">
+                  <option value="4">.4f (400.0000)</option>
+                  <option value="1">.1f (400.0)</option>
+                </select>
+                <button id="btn-v2-apply-fixes" class="btn btn-primary btn-sm" style="padding: 2px 6px; font-size: 0.7rem; margin-left: 5px;">Apply Fixes & Update PCF</button>
+                <button id="btn-v2-download-basic" class="btn btn-success btn-sm" style="padding: 2px 6px; font-size: 0.7rem; background: #3b82f6; border: none; color: white; cursor:pointer;">Download Basic PCF</button>
+                <button id="btn-v2-download-full" class="btn btn-success btn-sm" style="padding: 2px 6px; font-size: 0.7rem; background: #10b981; border: none; color: white; cursor:pointer;">Download PCF with all CA</button>
+              </div>
+            </div>
+            <div id="smart_fixer-datatable-container" style="flex: 1; overflow: auto; background: var(--bg-subtle);"></div>
+            <div id="smart_fixer-builder-console" style="height: 120px; min-height: 120px; background: #1e1e1e; border-top: 1px solid var(--border); color: #d4d4d4; font-family: monospace; font-size: 0.75rem; padding: 8px; overflow-y: auto; white-space: pre-wrap; z-index: 50; position: relative;">
+              <div style="color: #888;">[PCF Builder Console] Waiting for build...</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Column: 3D Canvas -->
+        <div style="width: 60%; position: relative; border: 1px solid var(--border); border-radius: 4px; overflow: hidden;">
+          <div id="react-root-2" style="width: 100%; height: 100%;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+       ⑪ MASTER DATA TAB (Integration)
+       ═══════════════════════════════════════════ -->
+    <section id="panel-master-data" class="tab-panel" role="tabpanel">
+      <div id="integ-app-container">
+        <!-- Content injected by MasterDataController.js -->
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════
+       ⑫ DEBUG TAB
+       ═══════════════════════════════════════════ -->
+    <section id="panel-debug" class="tab-panel" role="tabpanel">
+      <div class="flex gap-1 items-center mb-1">
+        <h2 style="font-family:var(--font-code);font-size:0.9rem;color:var(--amber)">DEBUGGING</h2>
+        <div class="flex gap-1" style="margin-left:auto">
+          <button class="btn btn-secondary btn-sm" id="btn-clear-debug">Clear</button>
+        </div>
+      </div>
+      <div id="olet-watch-window"
+        style="background: #111; color: var(--emerald); padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--emerald); font-family: monospace; height: 180px; overflow-y: auto; white-space: pre-wrap;">
+        [OLET Watcher Waiting for Sequence 108...]
+      </div>
+      <div id="debug-tables-container"
+        style="padding:1rem;background:var(--bg-1);border:1px solid var(--steel);min-height:400px;overflow-y:auto">
+        <div style="padding:2rem;text-align:center;color:var(--text-muted)">Running conversion will populate tables
+          here.</div>
+      </div>
+
+      <div class="flex gap-1 items-center mt-3 mb-1">
+        <h2 style="font-family:var(--font-code);font-size:0.9rem;color:var(--amber)">PCF SANITIZER SYSTEM LOG</h2>
+      </div>
+      <div id="sanitizer-log-window"
+        style="background: #111; color: #aaa; padding: 1rem; border: 1px solid var(--steel); font-family: monospace; height: 180px; overflow-y: auto; white-space: pre-wrap;">
+        [PCF Sanitizer Waiting...]
+      </div>
+    </section>
+  </main>
+
+  <!-- ── Status Bar ──────────────────────────────────────────────── -->
+  <footer id="status-bar">
+    <div class="status-item">
+      <div class="status-dot idle" id="status-dot"></div>
+      <span id="status-text">Ready</span>
+    </div>
+    <div class="status-item" id="status-rows" style="display:none">
+      <span id="status-row-count" class="text-code"></span> rows
+    </div>
+    <div class="status-item" id="status-groups" style="display:none">
+      <span id="status-group-count" class="text-code"></span> components
+    </div>
+    <div class="status-item" id="status-sequencer-mode" style="display:none;color:var(--amber)">
+      Mode: <span id="status-sequencer-mode-text" class="text-code">STRICT</span>
+    </div>
+    <div id="status-bar-legacy" style="margin-left:auto;color:var(--text-muted);font-size:0.68rem;display:block">
+      <span id="app-revision">PCF Converter v5.91b | ver.05-03-26</span> &nbsp;·&nbsp; Browser-based &nbsp;·&nbsp; No data leaves your machine
+    </div>
+  </footer>
+
+
+  <!-- ── Defaults Popup Modal ─────────────────────────────────────── -->
+  <div id="defaults-popup" class="modal-overlay" style="display:none">
+    <div class="modal-dialog" style="max-width:95vw;max-height:90vh">
+      <div class="modal-header">
+        <h3 style="margin:0;font-size:1rem;color:var(--amber)">Apply Default Values</h3>
+        <button class="modal-close" id="defaults-close-x"
+          style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--text-muted)">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow:auto;padding:1rem">
+        <p class="text-muted text-sm mb-1">
+          Values in <span style="color:red;font-weight:600">red</span> are defaults from Settings.
+          Edit as needed, then click "Load this data" to apply.
+        </p>
+        <div id="defaults-table-wrapper" style="overflow:auto;max-height:60vh">
+          <!-- Table injected by JS -->
+        </div>
+      </div>
+      <div class="modal-footer"
+        style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem;border-top:1px solid var(--border)">
+        <div style="flex:1;display:flex;align-items:center;gap:0.5rem">
+          <span class="text-muted text-sm">Default
+            <input type="number" id="ins-den-default" value="210"
+              style="width:60px;padding:0.25rem 0.5rem;background:var(--bg-1);border:1px solid var(--steel);color:var(--text-primary);border-radius:4px;text-align:center" />
+            kg/m³ is populated as insulation density
+          </span>
+        </div>
+        <div style="display:flex;gap:0.5rem">
+          <button id="defaults-cancel" class="btn btn-secondary">Cancel</button>
+          <button id="defaults-apply" class="btn btn-primary">Load this data</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Boot error fallback ─────────────────────────────────────── -->
+  <div id="boot-error"
+    style="display:none;position:fixed;top:52px;left:0;right:0;padding:0.75rem 1.5rem;background:var(--red-dim);color:var(--red-err);font-family:var(--font-code);font-size:0.8rem;z-index:999">
+  </div>
+
+  <!-- ── App Script (ES module) ─────────────────────────────────── -->
+  <script type="module" src="js/app.js?t=1774159987168"></script>
+
+  <!-- 3DV PCF Builder bootstrap -->
+  <script type="module" src="/index.html?html-proxy&index=0.js"></script>
+
+</body>
+
+</html>

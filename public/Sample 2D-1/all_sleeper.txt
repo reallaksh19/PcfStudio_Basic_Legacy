@@ -1,0 +1,400 @@
+
+          at point  X=358978.7652  Y=2026093.8000  Z=   0.0000
+          at point  X=358978.7652  Y=2026078.4882  Z=   0.0000
+          at point  X=358989.2576  Y=2026078.4882  Z=   0.0000
+          at point  X=358989.2576  Y=2026091.8342  Z=   0.0000
+          at point  X=359051.1100  Y=2026091.8342  Z=   0.0000
+          at point  X=359051.1100  Y=2026101.5755  Z=   0.0000
+          at point  X=359061.6220  Y=2026101.5755  Z=   0.0000
+          at point  X=359061.6220  Y=2026091.8342  Z=   0.0000
+          at point  X=359171.7480  Y=2026091.8342  Z=   0.0000
+          at point  X=359171.7480  Y=2026100.8082  Z=   0.0000
+          at point  X=359182.2600  Y=2026100.8082  Z=   0.0000
+          at point  X=359182.2600  Y=2026091.8342  Z=   0.0000
+          at point  X=359293.1840  Y=2026091.8342  Z=   0.0000
+          at point  X=359293.1840  Y=2026100.8082  Z=   0.0000
+Press ENTER to continue:
+          at point  X=359303.6960  Y=2026100.8082  Z=   0.0000
+          at point  X=359303.6960  Y=2026091.8082  Z=   0.0000
+          at point  X=359363.9302  Y=2026091.8082  Z=   0.0000
+          at point  X=359363.9302  Y=2026093.7966  Z=   0.0000
+
+                  LINE      Layer: "0"
+                            Space: Model space
+                   Color: 8    Linetype: "BYLAYER"
+                    Material: ByBlock
+                   Handle = 491a93
+              from point, X=359644.6327  Y=2026152.0376  Z=   0.0000
+                to point, X=359643.0575  Y=2026152.0376  Z=   0.0000
+          Length =   1.5752,  Angle in XY Plane =    180
+                  Delta X =  -1.5752, Delta Y =    0.0000, Delta Z =   0.0000
+
+                  MTEXT     Layer: "0"
+                            Space: Model space
+                   Color: 7 (white)    Linetype: "BYLAYER"
+                    Material: ByBlock
+                   Handle = 491a92
+             Style = "R3-5A"
+        Annotative: No
+Press ENTER to continue:
+Location:        X=359645.4204  Y=2026152.9782  Z=   0.0000
+Width:              0.0000
+Normal:          X=   0.0000  Y=   0.0000  Z=   1.0000
+Rotation:               90
+Text height:        0.7500
+Line spacing:    Multiple (1x =    1.2500)
+Attachment:      MiddleCenter
+Flow direction:  LtoR
+Contents:        \A1;1500
+
+                  SOLID     Layer: "0"
+                            Space: Model space
+                   Color: 8    Linetype: "BYLAYER"
+                    Material: ByBlock
+                   Handle = 491a91
+              from point, X=359647.1327  Y=2026152.2043  Z=   0.0000
+               and point, X=359647.1327  Y=2026151.8710  Z=   0.0000
+                to point, X=359646.1327  Y=2026152.0376  Z=   0.0000
+               and point, X=359646.1327  Y=2026152.0376  Z=   0.0000
+
+                  SOLID     Layer: "0"
+                            Space: Model space
+Press ENTER to continue:
+                   Color: 8    Linetype: "BYLAYER"
+                    Material: ByBlock
+                   Handle = 491a90
+              from point, X=359643.6327  Y=2026152.2043  Z=   0.0000
+               and point, X=359643.6327  Y=2026151.8710  Z=   0.0000
+                to point, X=359644.6327  Y=2026152.0376  Z=   0.0000
+               and point, X=359644.6327  Y=2026152.0376  Z=   0.0000
+
+                  LINE      Layer: "0"
+                            Space: Model space
+                   Color: 8    Linetype: "BYLAYER"
+                    Material: ByBlock
+                   Handle = 491a8f
+              from point, X=359647.6647  Y=2026152.0376  Z=   0.0000
+                to point, X=359646.1327  Y=2026152.0376  Z=   0.0000
+          Length =   1.5319,  Angle in XY Plane =    180
+                  Delta X =  -1.5319, Delta Y =    0.0000, Delta Z =   0.0000
+
+                  LINE      Layer: "0"
+                            Space: Model space
+                   Color: 8    Linetype: "BYLAYER"
+                    Material: ByBlock
+Press ENTER to continue:
+                   Handle = 491a8e
+              from point, X=359644.6327  Y=2026151.7349  Z=   0.0000
+                to point, X=359644.6327  Y=2026151.7251  Z=   0.0000
+          Length =   0.0097,  Angle in XY Plane =    270
+                  Delta X =   0.0000, Delta Y =   -0.0097, Delta Z =   0.0000
+
+                  LINE      Layer: "0"
+                            Space: Model space
+                   Color: 8    Linetype: "BYLAYER"
+                    Material: ByBlock
+                   Handle = 491a8d
+              from point, X=359643.1327  Y=2026151.7349  Z=   0.0000
+                to point, X=359643.1327  Y=2026151.7251  Z=   0.0000
+          Length =   0.0097,  Angle in XY Plane =    270
+                  Delta X =   0.0000, Delta Y =   -0.0097, Delta Z =   0.0000
+
+                  MTEXT     Layer: "0"
+                            Space: Model space
+                   Color: 7 (white)    Linetype: "BYLAYER"
+                    Material: ByBlock
+                   Handle = 491a8c
+             Style = "R3-5A"
+Press ENTER to continue:
+        Annotative: No
+Location:        X=359654.9271  Y=2026152.4985  Z=   0.0000
+Width:              0.0000
+Normal:          X=   0.0000  Y=   0.0000  Z=   1.0000
+Rotation:               90
+Text height:        0.7500
+Line spacing:    Multiple (1x =    1.2500)
+Attachment:      MiddleCenter
+Flow direction:  LtoR
+Contents:        \A1;1500
+
+                  SOLID     Layer: "0"
+                            Space: Model space
+                   Color: 8    Linetype: "BYLAYER"
+                    Material: ByBlock
+                   Handle = 491a8b
+              from point, X=359656.6327  Y=2026152.2043  Z=   0.0000
+               and point, X=359656.6327  Y=2026151.8710  Z=   0.0000
+                to point, X=359655.6327  Y=2026152.0376  Z=   0.0000
+               and point, X=359655.6327  Y=2026152.0376  Z=   0.0000
+
+                  SOLID     Layer: "0"
+Press ENTER to continue:
+                            Space: Model space
+                   Color: 8    Linetype: "BYLAYER"
+                    Material: ByBlock
+                   Handle = 491a8a
+              from point, X=359653.1327  Y=2026152.2043  Z=   0.0000
+               and point, X=359653.1327  Y=2026151.8710  Z=   0.0000
+                to point, X=359654.1327  Y=2026152.0376  Z=   0.0000
+               and point, X=359654.1327  Y=2026152.0376  Z=   0.0000
+
+                  LINE      Layer: "0"
+                            Space: Model space
+                   Color: 8    Linetype: "BYLAYER"
+                    Material: ByBlock
+                   Handle = 491a89
+              from point, X=359656.6327  Y=2026152.0376  Z=   0.0000
+                to point, X=359657.5593  Y=2026152.0376  Z=   0.0000
+          Length =   0.9265,  Angle in XY Plane =      0
+                  Delta X =   0.9265, Delta Y =    0.0000, Delta Z =   0.0000
+
+                  LINE      Layer: "0"
+                            Space: Model space
+                   Color: 8    Linetype: "BYLAYER"
+Press ENTER to continue:
+                    Material: ByBlock
+                   Handle = 491a88
+              from point, X=359653.1327  Y=2026152.0376  Z=   0.0000
+                to point, X=359652.4152  Y=2026152.0376  Z=   0.0000
+          Length =   0.7175,  Angle in XY Plane =    180
+                  Delta X =  -0.7175, Delta Y =    0.0000, Delta Z =   0.0000
+
+                  LINE      Layer: "0"
+                            Space: Model space
+                   Color: 8    Linetype: "BYLAYER"
+                    Material: ByBlock
+                   Handle = 491a87
+              from point, X=359655.6327  Y=2026151.7349  Z=   0.0000
+                to point, X=359655.6327  Y=2026151.7251  Z=   0.0000
+          Length =   0.0097,  Angle in XY Plane =    270
+                  Delta X =   0.0000, Delta Y =   -0.0097, Delta Z =   0.0000
+
+                  LINE      Layer: "0"
+                            Space: Model space
+                   Color: 8    Linetype: "BYLAYER"
+                    Material: ByBlock
+                   Handle = 491a86
+Press ENTER to continue:
+              from point, X=359654.1327  Y=2026151.7349  Z=   0.0000
+                to point, X=359654.1327  Y=2026151.7251  Z=   0.0000
+          Length =   0.0097,  Angle in XY Plane =    270
+                  Delta X =   0.0000, Delta Y =   -0.0097, Delta Z =   0.0000
+
+                  LWPOLYLINE  Layer: "AMAL EAST OFF PLOT$1$900LB"
+                            Space: Model space
+                   Color: 3 (green)    Linetype: "BYLAYER"
+                   Handle = 491a5f
+              Open
+              area   32.3129
+            length   19.9435
+
+          at point  X=359643.6493  Y=2026157.4860  Z=   0.0000
+    starting width    0.0000
+      ending width    0.0000
+          at point  X=359643.6493  Y=2026161.5578  Z=   0.0000
+    starting width    0.0170
+      ending width    0.0170
+          at point  X=359659.5210  Y=2026161.5578  Z=   0.0000
+
+                  LWPOLYLINE  Layer: "0"
+                            Space: Model space
+Press ENTER to continue:
+                   Color: 8    Linetype: "BYLAYER"
+                   Handle = 491a5b
+              Open
+    Constant width    0.0000
+              area   0.0000
+            length   6.2084
+
+          at point  X=359644.6327  Y=2026157.7698  Z=   0.0000
+          at point  X=359644.6327  Y=2026151.5614  Z=   0.0000
+
+                  LWPOLYLINE  Layer: "02A- PROP. PRODUCTION ROUTE"
+                            Space: Model space
+                   Handle = 491a5a
+              Open
+    Constant width    0.0000
+              area   0.0000
+            length   0.2740
+
+          at point  X=359644.2517  Y=2026156.7830  Z=   0.0000
+          at point  X=359644.2517  Y=2026156.5090  Z=   0.0000
+
+                  LWPOLYLINE  Layer: "02D - SI ROUTE-AW-PH2A"
+                            Space: Model space
+                   Thickness =    0.0010
+Press ENTER to continue:
+                   Handle = 491a59
+              Open
+         Thickness    0.0010
+    Constant width    0.0000
+              area   0.0000
+            length   0.3240
+
+          at point  X=359644.1757  Y=2026157.6480  Z=   0.0000
+          at point  X=359644.1757  Y=2026157.3240  Z=   0.0000
+
+                  LWPOLYLINE  Layer: "02A- PROP. PRODUCTION ROUTE"
+                            Space: Model space
+                   Handle = 491a58
+              Open
+    Constant width    0.0000
+              area   0.0000
+            length   0.2740
+
+          at point  X=359645.0137  Y=2026156.7830  Z=   0.0000
+          at point  X=359645.0137  Y=2026156.5090  Z=   0.0000
+
+                  LWPOLYLINE  Layer: "02D - SI ROUTE-AW-PH2A"
+                            Space: Model space
+                   Thickness =    0.0010
+Press ENTER to continue:
+                   Handle = 491a57
+              Open
+         Thickness    0.0010
+    Constant width    0.0000
+              area   0.0000
+            length   0.3240
+
+          at point  X=359645.0897  Y=2026157.6480  Z=   0.0000
+          at point  X=359645.0897  Y=2026157.3240  Z=   0.0000
+
+                  LWPOLYLINE  Layer: "0006 WSW FLOWLINE"
+                            Space: Model space
+Linetype scaling =    0.0050
+                   Handle = 491a56
+              Open
+    Constant width    0.0000
+              area   0.0088
+            length   0.6315
+
+          at point  X=359644.9845  Y=2026156.1280  Z=   0.0000
+          at point  X=359644.9845  Y=2026155.8430  Z=   0.0000
+          at point  X=359644.9537  Y=2026155.8430  Z=   0.0000
+          at point  X=359644.9537  Y=2026156.1280  Z=   0.0000
+          at point  X=359644.9845  Y=2026156.1280  Z=   0.0000
+Press ENTER to continue:
+
+                  LWPOLYLINE  Layer: "0006 WSW FLOWLINE"
+                            Space: Model space
+Linetype scaling =    0.0050
+                   Handle = 491a55
+              Open
+    Constant width    0.0000
+              area   0.0000
+            length   0.0545
+
+          at point  X=359644.9845  Y=2026155.8855  Z=   0.0000
+          at point  X=359645.0370  Y=2026155.9000  Z=   0.0000
+
+                  LWPOLYLINE  Layer: "0006 WSW FLOWLINE"
+                            Space: Model space
+Linetype scaling =    0.0050
+                   Handle = 491a54
+              Open
+    Constant width    0.0000
+              area   0.0000
+            length   0.0553
+
+          at point  X=359644.9845  Y=2026156.0855  Z=   0.0000
+          at point  X=359645.0370  Y=2026156.0680  Z=   0.0000
+Press ENTER to continue:
+
+                  LWPOLYLINE  Layer: "0006 WSW FLOWLINE"
+                            Space: Model space
+Linetype scaling =    0.0050
+                   Handle = 491a53
+              Open
+    Constant width    0.0000
+              area   0.0000
+            length   0.1680
+
+          at point  X=359645.0370  Y=2026156.0680  Z=   0.0000
+          at point  X=359645.0370  Y=2026155.9000  Z=   0.0000
+
+                  LWPOLYLINE  Layer: "0006 WSW FLOWLINE"
+                            Space: Model space
+Linetype scaling =    0.0050
+                   Handle = 491a52
+              Open
+    Constant width    0.0000
+              area   0.0088
+            length   0.6315
+
+          at point  X=359644.9142  Y=2026156.1280  Z=   0.0000
+          at point  X=359644.9142  Y=2026155.8430  Z=   0.0000
+Press ENTER to continue:
+          at point  X=359644.9450  Y=2026155.8430  Z=   0.0000
+          at point  X=359644.9450  Y=2026156.1280  Z=   0.0000
+          at point  X=359644.9142  Y=2026156.1280  Z=   0.0000
+
+                  LWPOLYLINE  Layer: "0006 WSW FLOWLINE"
+                            Space: Model space
+Linetype scaling =    0.0050
+                   Handle = 491a51
+              Open
+    Constant width    0.0000
+              area   0.0000
+            length   0.0545
+
+          at point  X=359644.9142  Y=2026155.8855  Z=   0.0000
+          at point  X=359644.8617  Y=2026155.9000  Z=   0.0000
+
+                  LWPOLYLINE  Layer: "0006 WSW FLOWLINE"
+                            Space: Model space
+Linetype scaling =    0.0050
+                   Handle = 491a50
+              Open
+    Constant width    0.0000
+              area   0.0000
+            length   0.0553
+Press ENTER to continue:
+
+          at point  X=359644.9142  Y=2026156.0855  Z=   0.0000
+          at point  X=359644.8617  Y=2026156.0680  Z=   0.0000
+
+                  LWPOLYLINE  Layer: "0006 WSW FLOWLINE"
+                            Space: Model space
+Linetype scaling =    0.0050
+                   Handle = 491a4f
+              Open
+    Constant width    0.0000
+              area   0.0000
+            length   0.1680
+
+          at point  X=359644.8617  Y=2026156.0680  Z=   0.0000
+          at point  X=359644.8617  Y=2026155.9000  Z=   0.0000
+
+                  LWPOLYLINE  Layer: "0"
+                            Space: Model space
+                   Color: 8    Linetype: "BYLAYER"
+                   Handle = 491a4e
+              Open
+    Constant width    0.0000
+              area   0.0000
+            length   0.1680
+Press ENTER to continue:
+
+          at point  X=359644.8617  Y=2026156.0680  Z=   0.0000
+          at point  X=359644.8617  Y=2026155.9000  Z=   0.0000
+
+                  LWPOLYLINE  Layer: "0012 SERVICE WATER LINE -2A2-2A3"
+                            Space: Model space
+                   Handle = 491a4d
+              Open
+    Constant width    0.0000
+              area   0.0000
+            length   0.1680
+
+          at point  X=359645.0370  Y=2026155.9000  Z=   0.0000
+          at point  X=359645.0370  Y=2026156.0680  Z=   0.0000
+
+                  LWPOLYLINE  Layer: "0012 SERVICE WATER LINE -2A2-2A3"
+                            Space: Model space
+                   Handle = 491a4c
+              Open
+    Constant width    0.0000
+              area   0.0000
+            length   0.1680
+
+          at point  X=359644.8617  Y=2026155.9000  Z=   0.0000

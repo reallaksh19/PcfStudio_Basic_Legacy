@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <title>PCF Studio</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%231e293b'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-size='18' font-family='monospace' fill='%2338bdf8'>P</text></svg>">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "react":               "https://esm.sh/react@19.2.4",
+      "react-dom/client":    "https://esm.sh/react-dom@19.2.4/client",
+      "react-dom":           "https://esm.sh/react-dom@19.2.4",
+      "react-konva":         "https://esm.sh/react-konva@19.0.3?deps=react@19.2.4",
+      "konva":               "https://esm.sh/konva@9.3.20",
+      "use-image":           "https://esm.sh/use-image@1.1.1?deps=react@19.2.4",
+      "uuid":                "https://esm.sh/uuid@11.1.0",
+      "immer":               "https://esm.sh/immer@10.1.1",
+      "exceljs":             "https://esm.sh/exceljs@4.4.0",
+      "zod":                 "https://esm.sh/zod@4.3.6",
+      "zustand":             "https://esm.sh/zustand@5.0.11",
+      "zustand/vanilla":     "https://esm.sh/zustand@5.0.11/vanilla",
+      "zustand/middleware":  "https://esm.sh/zustand@5.0.11/middleware",
+      "zustand/middleware/immer": "https://esm.sh/zustand@5.0.11/middleware/immer?deps=immer@10.1.1",
+      "lucide-react":        "https://esm.sh/lucide-react@0.468.0?deps=react@19.2.4",
+      "@react-three/fiber":  "https://esm.sh/@react-three/fiber@9.5.0?deps=react@19.2.4,three@0.160.0",
+      "@react-three/drei":   "https://esm.sh/@react-three/drei@10.7.7?deps=react@19.2.4,three@0.160.0",
+      "papaparse":           "https://esm.sh/papaparse@5.5.3",
+      "xlsx":                "https://esm.sh/xlsx@0.18.5",
+      "three":               "https://esm.sh/three@0.160.0",
+      "three/addons/":       "https://esm.sh/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+  <!-- ── Tab Navigation ─────────────────────────────────────────── -->
+  <nav id="tab-nav" role="tablist">
+    <!-- CSV→PCF: pipeline flow — source nodes connected by directed arrow -->
+    <button class="nav-btn active" id="rtab-ray" role="tab">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="4"  cy="12" r="2"/><circle cx="20" cy="12" r="2"/>
+        <path d="M6 12h10"/><path d="M14 8l4 4-4 4"/>
+      </svg>
+      CSV → PCF
+    </button>
+    <!-- 3D Viewer: isometric box -->
+    <button class="nav-btn" id="rtab-viewer" role="tab">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+      </svg>
+      3D Viewer
+    </button>
+    <!-- Master Data: stacked database cylinders -->
+    <button class="nav-btn" id="rtab-masterdata" role="tab">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/>
+      </svg>
+      Master Data
+    </button>
+    <!-- PCF Fixer: wrench -->
+    <button class="nav-btn" id="rtab-pcf-fixer" role="tab">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+      </svg>
+      PCF Fixer
+    </button>
+    <!-- Coordinates→PCF: crosshair pin -->
+    <button class="nav-btn" id="rtab-coord2pcf" role="tab">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/>
+        <line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/>
+        <line x1="18" y1="12" x2="22" y2="12"/>
+      </svg>
+      Coord → PCF
+    </button>
+      <div class="nav-header-inline">
+      <div class="app-title">
+        <svg class="logo-mark" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect width="24" height="24" rx="5" fill="#0f1a14"/>
+          <rect x="2"  y="10" width="20" height="4" rx="2" fill="#f59e0b"/>
+          <rect x="10" y="2"  width="4"  height="20" rx="2" fill="#f59e0b"/>
+          <circle cx="12" cy="12" r="3.2" fill="#0f1a14"/>
+          <circle cx="12" cy="12" r="3.2" fill="none" stroke="#f59e0b" stroke-width="1.6"/>
+        </svg>
+        <h1>PCF Studio</h1>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary btn-sm" id="btn-theme-toggle" title="Switch Theme"></button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Main Content ───────────────────────────────────────────── -->
+  <main id="app-main">
+
+    <!-- ① NEW RAY TAB ── rc-tab.js renders into this -->
+    <section id="panel-new-ray" class="tab-panel active" role="tabpanel">
+      <!-- Content injected by rc-tab.js on init -->
+    </section>
+
+    <!-- ② 3D VIEWER TAB -->
+    <section id="panel-viewer" class="tab-panel" role="tabpanel">
+
+      <div style="display:flex;gap:0.5rem;flex:1;min-height:0">
+
+        <!-- Left: PCF Input -->
+        <div class="panel" style="width:220px;display:flex;flex-direction:column;flex-shrink:0">
+          <div class="panel-header" style="padding:0.3rem 0.5rem">
+            <span class="panel-title" style="font-size:0.72rem">PCF Input</span>
+            <div class="flex gap-1">
+              <button class="btn btn-secondary btn-sm" id="btn-viewer-open" title="Open .pcf file">📂</button>
+              <button class="btn btn-secondary btn-sm" id="btn-viewer-clear" title="Clear scene">🗑</button>
+              <input type="file" id="viewer-file-input" accept=".pcf,.txt" style="display:none">
+            </div>
+          </div>
+          <div class="panel-body" style="padding:0;flex:1;display:flex;flex-direction:column">
+            <textarea id="viewer-pcf-input"
+              placeholder="Paste PCF content here or open a .pcf file…"
+              style="flex:1;width:100%;border:none;resize:none;outline:none;
+                     background:var(--bg-0);color:var(--text-code);
+                     font-family:var(--font-code);font-size:0.72rem;padding:0.5rem">
+            </textarea>
+          </div>
+          <div style="padding:0.3rem 0.5rem;border-top:1px solid var(--steel);display:flex;gap:0.5rem;align-items:center">
+            <span id="viewer-status" class="text-muted" style="font-size:0.65rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+            <button class="btn btn-primary btn-sm" id="btn-viewer-generate">▶ Generate 3D</button>
+          </div>
+          <!-- Axis config -->
+          <div style="padding:0.3rem 0.5rem;border-top:1px solid var(--steel);display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;font-size:0.68rem;color:var(--text-muted)">
+            <span style="font-weight:600;color:var(--text-secondary)">Axis:</span>
+            <label>X+ <select id="ax-xpos" style="font-size:0.68rem;background:var(--bg-panel);color:var(--text-primary);border:1px solid var(--steel);border-radius:3px">
+              <option>East</option><option>West</option><option>North</option><option>South</option><option>Up</option><option>Down</option>
+            </select></label>
+            <label>Y+ <select id="ax-ypos" style="font-size:0.68rem;background:var(--bg-panel);color:var(--text-primary);border:1px solid var(--steel);border-radius:3px">
+              <option>North</option><option>South</option><option>East</option><option>West</option><option>Up</option><option>Down</option>
+            </select></label>
+            <label>Z+ <select id="ax-zpos" style="font-size:0.68rem;background:var(--bg-panel);color:var(--text-primary);border:1px solid var(--steel);border-radius:3px">
+              <option>Up</option><option>Down</option><option>East</option><option>West</option><option>North</option><option>South</option>
+            </select></label>
+          </div>
+          <!-- Log -->
+          <div style="max-height:80px;overflow-y:auto;border-top:1px solid var(--steel);padding:0.3rem;font-family:var(--font-code);font-size:0.62rem;background:var(--bg-0);color:var(--text-muted)" id="viewer-log"></div>
+        </div>
+
+        <!-- Right: 3D Canvas -->
+        <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+          <div class="flex gap-0" style="margin-bottom:0.25rem">
+            <button class="btn btn-sm viewer-toggle-btn active" id="btn-viewer-3d">🧊 3D View</button>
+            <button class="btn btn-sm viewer-toggle-btn" id="btn-viewer-table">📊 Data Table</button>
+            <button class="btn btn-sm viewer-toggle-btn" id="btn-viewer-centre" title="Re-centre camera">⊙ Centre</button>
+            <button class="btn btn-sm viewer-toggle-btn" id="btn-viewer-fullscreen" style="margin-left:auto">⛶</button>
+            <span id="viewer-support-ratio" style="display:none"></span>
+          </div>
+          <div id="viewer-canvas-wrap" style="flex:1;position:relative;background:#0a0a0f;border-radius:4px;overflow:hidden;min-height:0">
+            <canvas id="viewer-canvas" style="width:100%;height:100%"></canvas>
+            <div id="react-root" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:auto"></div>
+          </div>
+          <div id="viewer-table-wrap" style="display:none;flex:1;overflow:auto"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ③ MASTER DATA TAB -->
+    <section id="panel-masterdata" class="tab-panel" role="tabpanel" style="min-width: 0; overflow-x: hidden; max-width: 100%;">
+      <div id="integ-app-container" style="min-width: 0; max-width: 100%; overflow-x: auto;">
+        <!-- Content injected by MasterDataController + CA Config sub-tab -->
+      </div>
+    </section>
+
+    <!-- ④ PCF FIXER TAB — React Integration (full component embedding) -->
+    <section id="panel-pcf-fixer" class="tab-panel" role="tabpanel">
+      <!-- React root mount point for PCF-Fixer App -->
+      <div id="pcf-fixer-react-root" style="flex:1;overflow:auto;display:flex;flex-direction:column"></div>
+    </section>
+
+    <!-- ⑤ COORDINATES → PCF TAB -->
+    
+
+    <section id="panel-coord2pcf" class="tab-panel" role="tabpanel">
+      <div id="coord2pcf-root" style="display:flex;flex:1;min-height:0"></div>
+    </section>
+  </main>
+
+  <!-- ── Status Bar ──────────────────────────────────────────────── -->
+  <footer id="status-bar">
+    <div class="status-item">
+      <div class="status-dot idle" id="status-dot"></div>
+      <span id="status-text">Ready</span>
+    </div>
+    <div id="status-bar-legacy" style="margin-left:auto;color:var(--text-muted);font-size:0.68rem;display:flex;gap:0.5rem;align-items:center;">
+      <span id="app-revision">PCF Studio — Ver 26-03-2026 (4)</span>
+    </div>
+  </footer>
+
+  <script type="module" src="js/ray-app.js"></script>
+</body>
+</html>

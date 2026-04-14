@@ -1,0 +1,195 @@
+
+/**
+ * js/editor/ui-manager.js
+ * Manages the Editor UI overlay: Fullscreen toggle, Property Panel.
+ */
+
+export class EditorUIManager {
+    constructor(containerEl, editorCore) {
+        this.container = containerEl;
+        this.editor = editorCore;
+        this.panel = null;
+        this.fullscreenBtn = null;
+
+        this._initStyles();
+        this._buildUI();
+        this._wireEvents();
+    }
+
+    _initStyles() {
+        const style = document.createElement('style');
+        style.textContent = `
+            .pcf-editor-overlay {
+                position: absolute;
+                top: 0; left: 0; width: 100%; height: 100%;
+                pointer-events: none;
+                z-index: 10;
+            }
+            .pcf-fullscreen-btn {
+                position: absolute;
+                top: 10px; right: 10px;
+                width: 40px; height: 40px;
+                background: rgba(30, 30, 40, 0.8);
+                border: 1px solid #444;
+                border-radius: 4px;
+                color: #fff;
+                font-size: 20px;
+                cursor: pointer;
+                pointer-events: auto;
+                display: flex; align-items: center; justify-content: center;
+                transition: background 0.2s;
+            }
+            .pcf-fullscreen-btn:hover { background: #444; }
+
+            .pcf-property-panel {
+                position: absolute;
+                top: 0; right: 0;
+                width: 300px; height: 100%;
+                background: rgba(25, 28, 36, 0.95);
+                border-left: 1px solid #444;
+                color: #eee;
+                padding: 15px;
+                transform: translateX(100%);
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                pointer-events: auto;
+                overflow-y: auto;
+                box-shadow: -5px 0 15px rgba(0,0,0,0.5);
+                display: flex; flex-direction: column;
+            }
+            .pcf-property-panel.active { transform: translateX(0); }
+
+            .pcf-panel-header {
+                font-size: 16px; font-weight: bold;
+                margin-bottom: 15px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid #444;
+                display: flex; justify-content: space-between; align-items: center;
+            }
+
+            .pcf-prop-row {
+                margin-bottom: 12px;
+            }
+            .pcf-prop-label {
+                font-size: 12px; color: #aaa;
+                margin-bottom: 4px;
+                display: block;
+            }
+            .pcf-prop-input {
+                width: 100%;
+                padding: 6px;
+                background: #111;
+                border: 1px solid #333;
+                color: #fff;
+                border-radius: 3px;
+                font-family: monospace;
+            }
+            .pcf-prop-input:focus { border-color: #007bff; outline: none; }
+
+            /* Fullscreen fix */
+            :fullscreen .pcf-editor-overlay { width: 100vw; height: 100vh; }
+        `;
+        document.head.appendChild(style);
+    }
+
+    _buildUI() {
+        // Overlay Container
+        this.overlay = document.createElement('div');
+        this.overlay.className = 'pcf-editor-overlay';
+
+        // Fullscreen Button
+        this.fullscreenBtn = document.createElement('button');
+        this.fullscreenBtn.className = 'pcf-fullscreen-btn';
+        this.fullscreenBtn.innerHTML = '⛶'; // Unicode Fullscreen
+        this.fullscreenBtn.title = "Toggle Fullscreen";
+        this.overlay.appendChild(this.fullscreenBtn);
+
+        // Property Panel
+        this.panel = document.createElement('div');
+        this.panel.className = 'pcf-property-panel';
+        this.panel.innerHTML = `
+            <div class="pcf-panel-header">
+                <span>Node Settings</span>
+                <button id="pcf-close-panel" style="background:none;border:none;color:#aaa;cursor:pointer;">✕</button>
+            </div>
+            <div id="pcf-props-content">
+                <div style="color:#666;font-style:italic;">Select a component to edit properties.</div>
+            </div>
+        `;
+        this.overlay.appendChild(this.panel);
+
+        // Append overlay to container
+        // Ensure container is relative for absolute positioning
+        if (getComputedStyle(this.container).position === 'static') {
+            this.container.style.position = 'relative';
+        }
+        this.container.appendChild(this.overlay);
+    }
+
+    _wireEvents() {
+        // Fullscreen
+        this.fullscreenBtn.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                this.container.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+                });
+                this.fullscreenBtn.innerHTML = '⛸'; // Exit icon
+            } else {
+                document.exitFullscreen();
+                this.fullscreenBtn.innerHTML = '⛶';
+            }
+        });
+
+        // Close Panel
+        this.panel.querySelector('#pcf-close-panel').addEventListener('click', () => {
+            this.hidePanel();
+            this.editor.deselectAll();
+        });
+    }
+
+    showPanel(componentData) {
+        this.panel.classList.add('active');
+        const content = this.panel.querySelector('#pcf-props-content');
+
+        // Generate inputs based on data
+        let html = '';
+        const skipKeys = ['points', 'type', 'meshUuid']; // Read-only or hidden
+
+        // Header info
+        html += `
+            <div class="pcf-prop-row">
+                <span class="pcf-prop-label">Type</span>
+                <div style="font-weight:bold;color:#4db8ff;">${componentData.type}</div>
+            </div>
+        `;
+
+        for (const [key, val] of Object.entries(componentData)) {
+            if (skipKeys.includes(key)) continue;
+
+            // Format value
+            let displayVal = val;
+            if (typeof val === 'number') displayVal = val % 1 !== 0 ? val.toFixed(3) : val;
+
+            html += `
+                <div class="pcf-prop-row">
+                    <label class="pcf-prop-label">${key}</label>
+                    <input class="pcf-prop-input" type="text" data-key="${key}" value="${displayVal}">
+                </div>
+            `;
+        }
+
+        content.innerHTML = html;
+
+        // Wire input changes
+        content.querySelectorAll('input').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const key = e.target.dataset.key;
+                const val = e.target.value;
+                this.editor.updateComponentProperty(key, val);
+            });
+        });
+    }
+
+    hidePanel() {
+        this.panel.classList.remove('active');
+    }
+}

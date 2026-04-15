@@ -418,9 +418,7 @@ export class PcfViewer3D {
                         }
                         supportRadius = maxR;
                     }
-                    console.log(`[Debug-Support-Info] Rendering SUPPORT ${comp.id} at pos:`, pos, `with calculated radius:`, supportRadius, `comp.attributes:`, comp.attributes);
                     meshes = this._buildSupport(pos, supportRadius, comp);
-                    console.log(`[Debug-Support-Meshes] meshes generated for SUPPORT:`, meshes);
                 }
                 break;
             }
@@ -558,65 +556,107 @@ export class PcfViewer3D {
     /** @private — Support graphic based on subtype */
     _buildSupport(pos, radius, comp) {
         const r = radius;
-        const color = COLORS.SUPPORT;
-        const nameRaw = String(comp.attributes?.SKEY || comp.attributes?.['COMPONENT-ATTRIBUTE1'] || '').toUpperCase();
+        const GREEN = 0x22c55e;
 
-        // Determine subtype from name keywords
-        const isFixed = /FIXED|ANC/i.test(nameRaw);
-        const isGuide = /GUIDE|SLIDE|SLID/i.test(nameRaw);
+        // ── Support type classification ──────────────────────────────────
+        const supName = String(
+            comp.attributes?.['<SUPPORT_NAME>'] || comp.attributes?.SUPPORT_NAME || ''
+        ).toUpperCase();
+        const skey = String(comp.attributes?.SKEY || '').toUpperCase();
+        const desc = String(comp.attributes?.['ITEM-DESCRIPTION'] || comp.attributes?.Description || '').toUpperCase();
 
-        if (isFixed) {
-            // Anchor / Fixed: Heavy orange base plate under pipe + clamping strap
-            const strapR = r * 1.1; // Extends slightly past pipe
-            const baseW = r * 3;
-            // Clamping strap (represented by an oversized thin disc crossing the pipe axis)
-            const strap = createDisc(pos, new THREE.Vector3(1, 0, 0), strapR, r * 0.4, 0xff6600);
+        const isGuide  = /CA100/.test(supName) || /GUIDE/.test(desc) || /GUIDE/.test(skey);
+        const isAnchor = !isGuide && (/ANCHOR|LINE[\s_-]?STOP|LIMIT[\s_-]?STOP/.test(desc) || /ANCH|LST|ANS/.test(skey));
 
-            // Base block (anchor to ground/structure)
-            const basePos = pos.clone().add(new THREE.Vector3(0, -r * 1.5, 0));
-            const base = createBox(basePos, baseW, 0xcc5500, false);
+        // ── SUPPORT-DIRECTION → arrow direction vector ───────────────────
+        const dirKeyword = String(comp.attributes?.['SUPPORT-DIRECTION'] || 'DOWN').toUpperCase().trim();
+        const DIR_MAP = {
+            DOWN:  new THREE.Vector3( 0, -1,  0),
+            UP:    new THREE.Vector3( 0,  1,  0),
+            NORTH: new THREE.Vector3( 0,  0, -1),
+            SOUTH: new THREE.Vector3( 0,  0,  1),
+            EAST:  new THREE.Vector3( 1,  0,  0),
+            WEST:  new THREE.Vector3(-1,  0,  0),
+        };
+        const arrowDir = DIR_MAP[dirKeyword] || new THREE.Vector3(0, -1, 0);
 
-            // Vertical legs connecting strap to base
-            const legLeft = createCylinder(pos.clone().add(new THREE.Vector3(-r, 0, 0)), basePos.clone().add(new THREE.Vector3(-r, r * 0.5, 0)), r * 0.2, 0xff6600);
-            const legRight = createCylinder(pos.clone().add(new THREE.Vector3(r, 0, 0)), basePos.clone().add(new THREE.Vector3(r, r * 0.5, 0)), r * 0.2, 0xff6600);
-
-            return [strap, base, legLeft, legRight].filter(Boolean);
+        // ── Find parent pipe direction (for anchor / guide lateral) ──────
+        let pipeDir = new THREE.Vector3(1, 0, 0); // default East
+        if (this._lastComponentsCache) {
+            for (const c of this._lastComponentsCache) {
+                if ((c.type || '').toUpperCase() !== 'PIPE' || !c.points || c.points.length < 2) continue;
+                const p1 = mapCoord(c.points[0]);
+                const p2 = mapCoord(c.points[1]);
+                const ab = p2.clone().sub(p1);
+                const len = ab.length();
+                if (len < 1) continue;
+                const dirN = ab.clone().divideScalar(len);
+                const ac = pos.clone().sub(p1);
+                const t = ac.dot(dirN);
+                if (t < -1 || t > len + 1) continue;
+                const perp = ac.clone().sub(dirN.clone().multiplyScalar(t));
+                if (perp.length() < (c.bore || 300) * 0.6) { pipeDir = dirN; break; }
+            }
         }
+
+        // ── Arrow builder: cone + shaft, aligned with direction ──────────
+        const makeArrow = (origin, dir, scale = 1) => {
+            const d = dir.clone().normalize();
+            const up = new THREE.Vector3(0, 1, 0);
+            const quat = new THREE.Quaternion().setFromUnitVectors(up, d);
+
+            const shaftLen = r * 0.9 * scale;
+            const shaftR   = r * 0.18 * scale;
+            const coneH    = r * 1.0 * scale;
+            const coneR    = r * 0.7 * scale;
+
+            // Shaft centre = origin + d * shaftLen/2
+            const shaftCentre = origin.clone().add(d.clone().multiplyScalar(shaftLen * 0.5));
+            const shaftGeo = new THREE.CylinderGeometry(shaftR, shaftR, shaftLen, 8);
+            const shaftMat = new THREE.MeshStandardMaterial({ color: GREEN });
+            const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+            shaft.position.copy(shaftCentre);
+            shaft.setRotationFromQuaternion(quat);
+
+            // Cone tip = origin + d * (shaftLen + coneH/2)
+            const coneCentre = origin.clone().add(d.clone().multiplyScalar(shaftLen + coneH * 0.5));
+            const coneGeo = new THREE.ConeGeometry(coneR, coneH, 8);
+            const coneMat = new THREE.MeshStandardMaterial({ color: GREEN });
+            const cone = new THREE.Mesh(coneGeo, coneMat);
+            cone.position.copy(coneCentre);
+            cone.setRotationFromQuaternion(quat);
+
+            return [shaft, cone];
+        };
 
         if (isGuide) {
-            // Guide: Lateral restraint (U-bolt or loop geometry) over a base pad
-            const loopR = r * 1.2;
-            const loopThickness = r * 0.15;
-            // The guide loop (thin vertical disc)
-            const loop = createDisc(pos, new THREE.Vector3(1, 0, 0), loopR, loopThickness, 0xaaaaaa);
-            // The slide pad
-            const padPos = pos.clone().add(new THREE.Vector3(0, -r, 0));
-            const pad = createBox(padPos, r * 1.5, 0x999999, false);
-            // Ensure the pad is thin like a slide plate
-            if (pad) {
-                pad.scale.set(1, 0.2, 1);
-            }
-            return [loop, pad].filter(Boolean);
+            // GUIDE (CA100): two lateral arrows pointing inward from both sides
+            const side = new THREE.Vector3().crossVectors(pipeDir, new THREE.Vector3(0, 1, 0)).normalize();
+            if (side.length() < 0.01) side.set(1, 0, 0);
+            const offset = r * 2.5;
+            const origin1 = pos.clone().add(side.clone().multiplyScalar(offset));
+            const origin2 = pos.clone().add(side.clone().negate().multiplyScalar(offset));
+            return [
+                ...makeArrow(origin1, side.clone().negate()),
+                ...makeArrow(origin2, side.clone()),
+            ].filter(Boolean);
         }
 
-        // Default Support: simple T-rest (horizontal bar resting on vertical post)
-        const armHW = r * 1.5;
-        const postH = r * 3; // Height of the drop
+        if (isAnchor) {
+            // ANCHOR / LINE STOP: two arrows along pipe axis (opposing) + one perpendicular up
+            const off = r * 1.5;
+            const origin1 = pos.clone().add(pipeDir.clone().multiplyScalar(off));
+            const origin2 = pos.clone().add(pipeDir.clone().negate().multiplyScalar(off));
+            const originUp = pos.clone();
+            return [
+                ...makeArrow(origin1, pipeDir.clone()),
+                ...makeArrow(origin2, pipeDir.clone().negate()),
+                ...makeArrow(originUp, new THREE.Vector3(0, 1, 0), 0.8),
+            ].filter(Boolean);
+        }
 
-        // Horizontal bar under the pipe
-        const underPos = pos.clone().add(new THREE.Vector3(0, -r * 1.1, 0));
-        const barLeft = underPos.clone().add(new THREE.Vector3(-armHW, 0, 0));
-        const barRight = underPos.clone().add(new THREE.Vector3(armHW, 0, 0));
-        const hBar = createCylinder(barLeft, barRight, r * 0.25, color);
-
-        // Vertical post going down
-        const postBottom = underPos.clone().add(new THREE.Vector3(0, -postH, 0));
-        const post = createCylinder(underPos, postBottom, r * 0.3, color);
-
-        // Base plate for visual grounding
-        const plate = createDisc(postBottom, new THREE.Vector3(0, 1, 0), r, r * 0.2, color);
-
-        return [hBar, post, plate].filter(Boolean);
+        // REST (CA150 / default): single arrow in SUPPORT-DIRECTION
+        return makeArrow(pos.clone(), arrowDir).filter(Boolean);
     }
 
     /** @private */

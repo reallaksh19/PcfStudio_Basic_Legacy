@@ -578,16 +578,16 @@ export function StatusBar({ activeTab, activeStage }) {
             title="Automatically run all stages: DataProcessor → Validation → Smart Fix → Apply Tier 1/2. Tier 3 items will need manual review."
           >
             {autoFixRunning ? (
-              <><span className="animate-spin inline-block">⚙</span> Running…</>
+              <span className="contents"><span className="animate-spin inline-block">⚙</span> Running…</span>
             ) : (
-              <><span>⚡</span> One-Click Auto-Fix</>
+              <span className="contents"><span>⚡</span> One-Click Auto-Fix</span>
             )}
           </button>
         )}
 
         {/* Only show these action buttons in Stage 2 */}
         {(activeTab === 'data' && activeStage === '2') && (
-            <>
+            <div className="flex items-center space-x-2">
 
                 <button
                   onClick={() => {
@@ -636,7 +636,7 @@ export function StatusBar({ activeTab, activeStage }) {
                 >
                   🚀 Run Second Pass
                 </button>
-            </>
+            </div>
         )}
 
         <span className="text-slate-400 font-mono text-xs">{verString}</span>

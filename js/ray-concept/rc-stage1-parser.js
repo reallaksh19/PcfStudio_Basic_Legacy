@@ -327,8 +327,9 @@ export function runStage1(rawCsvText, logFn = () => {}, validationCfg = null) {
       brlen,
       pipelineRef,
       ca97,
-      compName: resolveCol(firstRow, COL.compName),
-      description: resolveCol(firstRow, COL.description),
+      compName:     resolveCol(firstRow, COL.compName),
+      description:  resolveCol(firstRow, COL.description),
+      restraintType: canonType === 'SUPPORT' ? restraintType : '',
       // Component attributes CA1–CA10
       ca1:  resolveCol(firstRow, COL.ca1),
       ca2:  resolveCol(firstRow, COL.ca2),

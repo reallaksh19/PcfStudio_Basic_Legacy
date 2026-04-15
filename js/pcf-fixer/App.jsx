@@ -78,10 +78,10 @@ function MainApp() {
             onClick={() => setActiveTab('canvas')}
             className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors flex items-center gap-1 ${activeTab === 'canvas' ? 'border-blue-600 text-blue-700 bg-white rounded-t' : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
           >
-            <>
+            <span className="contents">
               <span>3D Topology</span>
               <span className="bg-blue-100 text-blue-700 py-0.5 px-1.5 rounded text-[10px] uppercase font-bold">New</span>
-            </>
+            </span>
           </button>
           <button
             onClick={() => setActiveTab('config')}

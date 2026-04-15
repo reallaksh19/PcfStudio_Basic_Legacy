@@ -27,7 +27,10 @@ const Smart2Dcanvas_CanvasViewport: React.FC = () => {
     selectObject: state.selectObject,
   })));
   const snap = calculateSnap(300, 180, scale);
-  const { clearSelection, nodes } = useSceneStore(state => ({ clearSelection: state.clearSelection, nodes: state.nodes }));
+  const { clearSelection, nodes } = useSceneStore(useShallow((state) => ({
+    clearSelection: state.clearSelection,
+    nodes: state.nodes,
+  })));
 
   const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
     if (activeTool === 'select' || activeTool === 'marquee') {

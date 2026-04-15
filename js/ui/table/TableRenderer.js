@@ -140,7 +140,22 @@ export class TableRenderer {
     createTableStruct(id, title) {
         const wrap = document.createElement("div");
         wrap.className = "table-section";
-        wrap.innerHTML = `<h3>${title}</h3>`;
+
+        // Title row with reset-all-filters button
+        const titleBar = document.createElement('div');
+        titleBar.style.cssText = 'display:flex;align-items:center;gap:8px;';
+        const h3 = document.createElement('h3');
+        h3.style.cssText = 'margin:0;flex:1;';
+        h3.textContent = title;
+        const resetBtn = document.createElement('button');
+        resetBtn.type = 'button';
+        resetBtn.className = 'af-reset-btn';
+        resetBtn.title = 'Clear all column filters';
+        resetBtn.style.cssText = 'display:none;cursor:pointer;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:4px;color:#f87171;padding:2px 7px;font-size:0.72rem;line-height:1.5;align-items:center;gap:4px;';
+        resetBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="vertical-align:middle"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Reset Filters`;
+        titleBar.append(h3, resetBtn);
+        wrap.appendChild(titleBar);
+        this._resetBtn = resetBtn;
 
         const tbl = document.createElement("table");
         tbl.className = "data-table editable-table";
@@ -193,7 +208,10 @@ export class TableRenderer {
             }
             innerHtml += `<button class="af-btn" data-col="${i}" title="Filter / sort column"
                 style="margin-left:3px;cursor:pointer;background:none;border:none;color:var(--text-secondary);
-                       font-size:0.75rem;padding:0 2px;vertical-align:middle;">&#9660;</button>`;
+                       padding:0 2px;vertical-align:middle;opacity:0.6;line-height:1;transition:opacity .15s"
+                onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity=this.dataset.active?'1':'0.6'">
+                <svg width="9" height="7" viewBox="0 0 9 7" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><polygon points="0,0 9,0 4.5,7"/></svg>
+              </button>`;
             th.innerHTML = innerHtml;
             th.querySelector('.af-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -201,6 +219,15 @@ export class TableRenderer {
             });
             trTop.appendChild(th);
         }
+
+        // Wire reset button (created above in createTableStruct title bar)
+        resetBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._columnFilters = {};
+            trTop.querySelectorAll('.af-btn svg polygon').forEach(p => p.setAttribute('fill', 'currentColor'));
+            trTop.querySelectorAll('.af-btn').forEach(b => { b.dataset.active = ''; b.style.opacity = '0.6'; });
+            this._applyFilters();
+        });
 
         thead.appendChild(trTop);
         thead.appendChild(trSub);
@@ -325,13 +352,10 @@ export class TableRenderer {
             }
             // Update button indicator
             const afBtn = anchorEl;
-            if (this._columnFilters[colIdx]) {
-                afBtn.textContent = '●';
-                afBtn.style.color = '#89b4fa';
-            } else {
-                afBtn.textContent = '▾';
-                afBtn.style.color = '';
-            }
+            const isActive = !!this._columnFilters[colIdx];
+            afBtn.dataset.active = isActive ? '1' : '';
+            afBtn.style.opacity = '1';
+            afBtn.querySelector('svg polygon').setAttribute('fill', isActive ? '#89b4fa' : 'currentColor');
             this._applyFilters();
             panel.remove();
         };
@@ -339,9 +363,12 @@ export class TableRenderer {
         btnRow.append(btnOk, btnCancel);
         panel.appendChild(btnRow);
 
-        // Position the panel below the anchor
-        anchorEl.style.position = 'relative';
-        anchorEl.closest('th').appendChild(panel);
+        // Position the panel below the anchor button using fixed coords
+        document.body.appendChild(panel);
+        const rect = anchorEl.getBoundingClientRect();
+        panel.style.position = 'fixed';
+        panel.style.top = (rect.bottom + 2) + 'px';
+        panel.style.left = rect.left + 'px';
 
         // Close on outside click
         const closeHandler = (e) => {
@@ -381,6 +408,7 @@ export class TableRenderer {
         if (statusEl) {
             statusEl.textContent = hasFilters ? `Filtered: ${visCount} of ${totalCount} rows` : '';
         }
+        if (this._resetBtn) this._resetBtn.style.display = hasFilters ? 'inline-flex' : 'none';
     }
 
     _sortTableBy(colIdx, ascending) {

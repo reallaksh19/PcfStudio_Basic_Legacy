@@ -249,6 +249,8 @@ export function emitComponent(comp, cfg = {}) {
     case 'VALVE':               return emitValve(comp, cfg);
     case 'REDUCER-CONCENTRIC':
     case 'REDUCER-ECCENTRIC':   return emitReducer(comp, cfg);
+    case 'FBLI':                return emitFlange({ ...comp, type: 'FLANGE', skey: comp.skey || 'BLFL' }, cfg);
+    case 'REDU':                return emitReducer({ ...comp, type: 'REDUCER-CONCENTRIC' }, cfg);
     case 'SUPPORT':             return emitSupport(comp, cfg);
     // Non-structural items silently dropped per PCF spec (same as legacy mode)
     case 'GASK':

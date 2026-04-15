@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSceneStore } from '../smart2dcanvas/Smart2Dcanvas_SceneStore';
 
 function readPath(obj: any, path: string) {

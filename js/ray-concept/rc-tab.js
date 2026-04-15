@@ -625,12 +625,19 @@ function buildIsopcfRows(components, cfg) {
  */
 function _buildIsoPcfCsvText(rows) {
   if (!rows.length) return '(no components)';
-  const headers = ['Type', 'Bore', 'RefNo', 'SKEY', 'EP1', 'EP2', 'CP', 'BP'];
+  const headers = ['Type', 'Bore', 'RefNo', 'SKEY',
+    'CA1 (Des Pr.)', 'CA2 (Des Temp.)', 'CA3 (Material)', 'CA4 (Wall Thk.)',
+    'CA5 (Ins Thk.)', 'CA6 (Ins Den.)', 'CA7 (Corr. Allow.)', 'CA8 (Comp Wt.)',
+    'CA9 (Fluid Den.)', 'CA10 (Hydro Pr.)',
+    'EP1', 'EP2', 'CP', 'BP'];
   const fmtPt = pt => pt ? `${pt.x?.toFixed(1)},${pt.y?.toFixed(1)},${pt.z?.toFixed(1)}` : '';
   const lines = [headers.join('\t')];
   for (const c of rows) {
     lines.push([
       c.type || '', c.bore ?? '', c.refNo || '', c.skey || '',
+      c.ca1 ?? '', c.ca2 ?? '', c.ca3 ?? '', c.ca4 ?? '',
+      c.ca5 ?? '', c.ca6 ?? '', c.ca7 ?? '', c.ca8 ?? '',
+      c.ca9 ?? '', c.ca10 ?? '',
       fmtPt(c.ep1), fmtPt(c.ep2), fmtPt(c.cp), fmtPt(c.bp)
     ].join('\t'));
   }
@@ -667,7 +674,17 @@ async function runS4(root) {
       );
       const header = buildPcfHeader(rcState.pipelineRef || rcState.rawFileName, engineCfg);
       const nl = '\r\n';
-      const body = ordered.flatMap(c => emitComponent(c, engineCfg)).join(nl);
+      // Map flat ca1…ca10 props → nested ca object expected by emitComponent
+      const withCa = ordered.map(c => ({
+        ...c,
+        ca: {
+          '1': c.ca1 ?? '', '2': c.ca2 ?? '', '3': c.ca3 ?? '',
+          '4': c.ca4 ?? '', '5': c.ca5 ?? '', '6': c.ca6 ?? '',
+          '7': c.ca7 ?? '', '8': c.ca8 ?? '', '9': c.ca9 ?? '', '10': c.ca10 ?? '',
+          ...(c.ca || {}),  // preserve any already-nested ca values
+        },
+      }));
+      const body = withCa.flatMap(c => emitComponent(c, engineCfg)).join(nl);
       pcfText = header + body;
     } else {
       // Legacy engine (unchanged)
@@ -892,6 +909,17 @@ async function runLoadMasters(root) {
       activatePreviewBtn(root, '2dcsv');
     }
 
+    // ── Sync CA1-CA10 → ISOPCF CSV → Isometric PCF ──────────────────
+    // Re-build the ISOPCF component list (preserves updated CA values via spread)
+    const cfg4 = getConfig();
+    rcState.isoPcfComponents = buildIsopcfRows(rcState.components, cfg4);
+    rcState.isoPcfCsvText    = _buildIsoPcfCsvText(rcState.isoPcfComponents);
+    // Re-run S4 to regenerate the Isometric PCF text with updated CA1-CA10
+    if (rcState.components.length) {
+      passLog(root, '↻ Re-generating Isometric PCF with updated CA attributes…', 'info');
+      runS4(root).catch(e => passLog(root, `⚠ S4 re-run after Masters: ${e.message}`, 'warn'));
+    }
+
     // ── Per-component tallies ────────────────────────────────────────
     let withCA = 0, withRating = 0, noLineno = 0, withCA6 = 0, withCA7 = 0,
         withLineList = 0, withPCMaster = 0, failedRows = 0;
@@ -1087,10 +1115,20 @@ async function runAll(root) {
   if (rcState.stageStatus.s2 !== 'done') return;
   await runS3(root);
   if (rcState.stageStatus.s3 !== 'done') return;
+
+  // Enrich: Pipeline Ref → Masters → then propagate to ISOPCF CSV
+  passLog(root, `── Enrich: Pipeline Ref ────`, 'header');
+  await runPipelineLookup(root);
+  passLog(root, `── Enrich: Masters ─────────`, 'header');
+  await runLoadMasters(root);
+
   await runS4(root);
   passLog(root, '', 'divider');
   passLog(root, `✓ Pipeline complete`, 'success');
-  passLog(root, `  S1→S2→S3→S4 done`, 'stat');
+  passLog(root, `  S1→S2→S3→PipelineRef→Masters→S4 done`, 'stat');
+
+  // Focus the Pipeline tab (not Debug)
+  switchSubTab(root, 'pipeline');
 }
 
 // ── RayConfig UI ──────────────────────────────────────────────────────────────
@@ -1266,8 +1304,14 @@ function showPreview(root, containerId, text) {
   el.textContent = text;
 }
 
-const EDITABLE_2D_COLS = new Set(['PIPELINE-REFERENCE', 'PIPING CLASS', 'RATING', 'LINENO KEY', 'CA1 (Des Pr.)', 'CA2 (Des Temp.)', 'CA3 (Material)']);
-const FILL_DOWN_2D_COLS = new Set(['LINENO KEY', 'PIPING CLASS', 'RATING', 'CA1 (Des Pr.)', 'CA2 (Des Temp.)', 'CA3 (Material)']);
+const EDITABLE_2D_COLS = new Set(['PIPELINE-REFERENCE', 'PIPING CLASS', 'RATING', 'LINENO KEY',
+  'CA1 (Des Pr.)', 'CA2 (Des Temp.)', 'CA3 (Material)', 'CA4 (Wall Thk.)',
+  'CA5 (Ins Thk.)', 'CA6 (Ins Den.)', 'CA7 (Corr. Allow.)', 'CA8 (Comp Wt.)',
+  'CA9 (Fluid Den.)', 'CA10 (Hydro Pr.)']);
+const FILL_DOWN_2D_COLS = new Set(['LINENO KEY', 'PIPING CLASS', 'RATING',
+  'CA1 (Des Pr.)', 'CA2 (Des Temp.)', 'CA3 (Material)', 'CA4 (Wall Thk.)',
+  'CA5 (Ins Thk.)', 'CA6 (Ins Den.)', 'CA7 (Corr. Allow.)', 'CA8 (Comp Wt.)',
+  'CA9 (Fluid Den.)', 'CA10 (Hydro Pr.)']);
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -1373,19 +1417,200 @@ function render2DTable(root, csvText, sourceRows = rcState.components) {
   }).join('');
 
   el.style.whiteSpace = 'normal';
-  el.innerHTML = `<table style="border-collapse:collapse"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+  el.innerHTML = `<table style="border-collapse:collapse"><thead>${thead}</thead><tbody id="rc-2d-tbody">${tbody}</tbody></table>`;
+
+  // ── Excel-like auto-filter ────────────────────────────────────────────────
+  const tbody2DEl = el.querySelector('#rc-2d-tbody');
+  const columnFilters = {};
+
+  const applyFilters2D = () => {
+    const hasFilters = Object.keys(columnFilters).length > 0;
+    tbody2DEl.querySelectorAll('tr').forEach(tr => {
+      if (!hasFilters) { tr.style.display = ''; return; }
+      const cells = tr.querySelectorAll('td');
+      const show = Object.entries(columnFilters).every(([ci, allowed]) => {
+        const cell = cells[Number(ci)];
+        if (!cell) return true;
+        const cellText = (cell.querySelector('input,select')?.value ?? cell.textContent ?? '').trim();
+        return allowed.has(cellText);
+      });
+      tr.style.display = show ? '' : 'none';
+    });
+  };
+
+  const openFilter2D = (colIdx, anchorEl) => {
+    document.querySelectorAll('.rc-af-panel').forEach(p => p.remove());
+    const allCellVals = [...tbody2DEl.querySelectorAll('tr')].map(tr => {
+      const cell = tr.querySelectorAll('td')[colIdx];
+      return (cell?.querySelector('input,select')?.value ?? cell?.textContent ?? '').trim();
+    });
+    const uniqueVals = [...new Set(allCellVals)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const active = columnFilters[colIdx];
+
+    const panel = document.createElement('div');
+    panel.className = 'rc-af-panel';
+    panel.style.cssText = 'position:absolute;z-index:9999;background:#1e2533;border:1px solid #3a4460;border-radius:6px;padding:8px;min-width:180px;max-height:320px;overflow-y:auto;box-shadow:0 4px 20px rgba(0,0,0,0.5);font-size:0.75rem;color:#cdd6f4;';
+
+    // Sort row
+    const sortRow = document.createElement('div');
+    sortRow.style.cssText = 'display:flex;gap:4px;margin-bottom:6px;';
+    ['A→Z', 'Z→A'].forEach((label, asc) => {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      btn.style.cssText = 'flex:1;padding:2px 4px;background:#313552;border:1px solid #3a4460;border-radius:4px;cursor:pointer;color:#cdd6f4;font-size:0.7rem;';
+      btn.onclick = () => {
+        const trs = [...tbody2DEl.querySelectorAll('tr')];
+        trs.sort((a, b) => {
+          const av = (a.querySelectorAll('td')[colIdx]?.querySelector('input,select')?.value ?? a.querySelectorAll('td')[colIdx]?.textContent ?? '').trim();
+          const bv = (b.querySelectorAll('td')[colIdx]?.querySelector('input,select')?.value ?? b.querySelectorAll('td')[colIdx]?.textContent ?? '').trim();
+          return asc === 0 ? av.localeCompare(bv, undefined, { numeric: true }) : bv.localeCompare(av, undefined, { numeric: true });
+        });
+        trs.forEach(tr => tbody2DEl.appendChild(tr));
+        panel.remove();
+      };
+      sortRow.appendChild(btn);
+    });
+    panel.appendChild(sortRow);
+
+    // Search
+    const searchEl = document.createElement('input');
+    searchEl.type = 'text'; searchEl.placeholder = 'Search…';
+    searchEl.style.cssText = 'width:100%;box-sizing:border-box;padding:3px 6px;margin-bottom:6px;background:#0f172a;border:1px solid #3a4460;border-radius:4px;color:#cdd6f4;font-size:0.75rem;';
+    panel.appendChild(searchEl);
+
+    // Select All / Clear
+    const ctrlRow = document.createElement('div');
+    ctrlRow.style.cssText = 'display:flex;gap:8px;margin-bottom:4px;';
+    const btnAll2 = document.createElement('button'); btnAll2.textContent = 'Select All'; btnAll2.style.cssText = 'font-size:0.68rem;background:none;border:none;color:#89b4fa;cursor:pointer;padding:0;';
+    const btnClr2 = document.createElement('button'); btnClr2.textContent = 'Clear'; btnClr2.style.cssText = btnAll2.style.cssText;
+    ctrlRow.append(btnAll2, btnClr2);
+    panel.appendChild(ctrlRow);
+
+    const listDiv = document.createElement('div');
+    listDiv.style.cssText = 'max-height:150px;overflow-y:auto;';
+    const renderList2D = (q) => {
+      listDiv.innerHTML = '';
+      uniqueVals.filter(v => !q || v.toLowerCase().includes(q.toLowerCase())).forEach(val => {
+        const lbl = document.createElement('label');
+        lbl.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 0;cursor:pointer;';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.value = val;
+        cb.checked = !active || active.has(val);
+        lbl.append(cb, document.createTextNode(val || '(blank)'));
+        listDiv.appendChild(lbl);
+      });
+    };
+    renderList2D('');
+    panel.appendChild(listDiv);
+    searchEl.addEventListener('input', () => renderList2D(searchEl.value));
+    btnAll2.onclick = () => listDiv.querySelectorAll('input').forEach(c => c.checked = true);
+    btnClr2.onclick = () => listDiv.querySelectorAll('input').forEach(c => c.checked = false);
+
+    // OK / Cancel
+    const btnRow2 = document.createElement('div');
+    btnRow2.style.cssText = 'display:flex;gap:4px;margin-top:8px;';
+    const btnOk2 = document.createElement('button'); btnOk2.textContent = 'OK';
+    btnOk2.style.cssText = 'flex:1;padding:3px;background:#89b4fa;color:#1e2533;border:none;border-radius:4px;cursor:pointer;font-weight:700;';
+    const btnCancel2 = document.createElement('button'); btnCancel2.textContent = 'Cancel';
+    btnCancel2.style.cssText = 'flex:1;padding:3px;background:#313552;color:#cdd6f4;border:1px solid #3a4460;border-radius:4px;cursor:pointer;';
+    btnOk2.onclick = () => {
+      const checked = [...listDiv.querySelectorAll('input:checked')].map(c => c.value);
+      const unchecked = [...listDiv.querySelectorAll('input:not(:checked)')].map(c => c.value);
+      if (unchecked.length === 0) delete columnFilters[colIdx];
+      else columnFilters[colIdx] = new Set(checked);
+      anchorEl.innerHTML = mkFilterSvg(!!columnFilters[colIdx]);
+      anchorEl.style.opacity = '1';
+      applyFilters2D();
+      panel.remove();
+    };
+    btnCancel2.onclick = () => panel.remove();
+    btnRow2.append(btnOk2, btnCancel2);
+    panel.appendChild(btnRow2);
+
+    // Position panel fixed below the anchor button (avoids header overlap)
+    document.body.appendChild(panel);
+    const rect2D = anchorEl.getBoundingClientRect();
+    panel.style.position = 'fixed';
+    panel.style.top = (rect2D.bottom + 2) + 'px';
+    panel.style.left = rect2D.left + 'px';
+    const closeHandler2D = (ev) => {
+      if (!panel.contains(ev.target) && ev.target !== anchorEl) { panel.remove(); document.removeEventListener('click', closeHandler2D, true); }
+    };
+    setTimeout(() => document.addEventListener('click', closeHandler2D, true), 10);
+    searchEl.focus();
+  };
+
+  // SVG triangle icon for filter buttons
+  const mkFilterSvg = (active) => {
+    const color = active ? '#89b4fa' : 'currentColor';
+    return `<svg width="9" height="7" viewBox="0 0 9 7" fill="${color}" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle"><polygon points="0,0 9,0 4.5,7"/></svg>`;
+  };
+
+  // Reset-all-filters button — pinned top-right of the preview area
+  const resetAllBtn = document.createElement('button');
+  resetAllBtn.type = 'button';
+  resetAllBtn.title = 'Clear all column filters';
+  resetAllBtn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="vertical-align:middle;margin-right:3px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Reset Filters`;
+  resetAllBtn.style.cssText = 'position:sticky;top:4px;right:0;float:right;z-index:10;cursor:pointer;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:4px;color:#f87171;padding:2px 7px;font-size:0.7rem;line-height:1.5;display:none;margin-bottom:4px;';
+  resetAllBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    Object.keys(columnFilters).forEach(k => delete columnFilters[k]);
+    el.querySelectorAll('.rc-af-btn').forEach(b => { b.innerHTML = mkFilterSvg(false); b.style.color = ''; });
+    applyFilters2D();
+    resetAllBtn.style.display = 'none';
+  });
+  el.insertBefore(resetAllBtn, el.firstChild);
+
+  // Attach filter button to every header cell
+  el.querySelectorAll('thead th').forEach((th, ci) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.innerHTML = mkFilterSvg(false);
+    btn.className = 'rc-af-btn';
+    btn.style.cssText = 'margin-left:4px;cursor:pointer;background:none;border:none;color:var(--text-secondary,#94a3b8);padding:0 2px;vertical-align:middle;opacity:0.6;';
+    btn.title = 'Filter / sort column';
+    btn.addEventListener('mouseenter', () => { btn.style.opacity = '1'; });
+    btn.addEventListener('mouseleave', () => { btn.style.opacity = columnFilters[ci] ? '1' : '0.6'; });
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openFilter2D(ci, btn);
+    });
+    th.appendChild(btn);
+  });
+
+  // Patch openFilter2D OK handler to update reset button visibility
+  const _origOk = applyFilters2D;
+  const updateResetBtn = () => {
+    const hasAny = Object.keys(columnFilters).length > 0;
+    resetAllBtn.style.display = hasAny ? 'inline-flex' : 'none';
+  };
+  // Wrap applyFilters2D to also update reset btn
+  const origApply = applyFilters2D;
+  const applyFilters2DAndReset = () => { origApply(); updateResetBtn(); };
+  // Re-wire all filter OK buttons to the wrapped version by overriding applyFilters2D reference
+  // (We close over applyFilters2D in openFilter2D already, so patch via re-assign isn't possible.
+  // Instead, intercept the DOM mutation: attach a MutationObserver on rc-af-panel removal.)
+  const panelObserver = new MutationObserver(() => updateResetBtn());
+  panelObserver.observe(document.body, { childList: true, subtree: false });
 
   if (el._rc2dInputHandler) el.removeEventListener('input', el._rc2dInputHandler);
   if (el._rc2dClickHandler) el.removeEventListener('click', el._rc2dClickHandler);
 
   const fieldMap = {
-    'PIPELINE-REFERENCE': 'pipelineRef',
-    'PIPING CLASS':       'pipingClass',
-    'RATING':             'rating',
-    'LINENO KEY':         'lineNoKey',
-    'CA1 (Des Pr.)':      'ca1',
-    'CA2 (Des Temp.)':    'ca2',
-    'CA8 (Comp Wt.)':     'ca8'
+    'PIPELINE-REFERENCE':    'pipelineRef',
+    'PIPING CLASS':          'pipingClass',
+    'RATING':                'rating',
+    'LINENO KEY':            'lineNoKey',
+    'CA1 (Des Pr.)':         'ca1',
+    'CA2 (Des Temp.)':       'ca2',
+    'CA3 (Material)':        'ca3',
+    'CA4 (Wall Thk.)':       'ca4',
+    'CA5 (Ins Thk.)':        'ca5',
+    'CA6 (Ins Den.)':        'ca6',
+    'CA7 (Corr. Allow.)':    'ca7',
+    'CA8 (Comp Wt.)':        'ca8',
+    'CA9 (Fluid Den.)':      'ca9',
+    'CA10 (Hydro Pr.)':      'ca10',
   };
 
   const inputHandler = (e) => {

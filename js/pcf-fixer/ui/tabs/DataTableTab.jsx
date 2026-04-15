@@ -93,11 +93,12 @@ function DiffView({ stage1Data, stage2Data }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {changes.map(({ row, original, changedFields }, rowIdx) =>
-            changedFields.map((field, fi) => (
+          {changes.map(({ row, original, changedFields }, rowIdx) => (
+            <React.Fragment key={String(row._rowIndex ?? rowIdx)}>
+            {changedFields.map((field, fi) => (
               <tr key={`${String(row._rowIndex ?? rowIdx)}-${fi}-${field}`} className="hover:bg-slate-50">
                 {fi === 0 && (
-                  <>
+                  <React.Fragment key={`diff-${String(row._rowIndex ?? rowIdx)}`}>
                     <td rowSpan={changedFields.length} className="px-3 py-1.5 font-mono border-r border-slate-200 sticky left-0 bg-white font-bold text-slate-700 align-top">
                       {row._rowIndex}
                     </td>
@@ -107,7 +108,7 @@ function DiffView({ stage1Data, stage2Data }) {
                         {row.type || 'UNKNOWN'}
                       </span>
                     </td>
-                  </>
+                  </React.Fragment>
                 )}
                 <td className="px-3 py-1.5 border-r border-slate-200 font-mono font-semibold text-slate-500 uppercase">{field}</td>
                 <td className="px-3 py-1.5 border-r border-slate-200 bg-red-50/40 font-mono text-red-700 line-through">
@@ -126,8 +127,9 @@ function DiffView({ stage1Data, stage2Data }) {
                   </td>
                 )}
               </tr>
-            ))
-          )}
+            ))}
+            </React.Fragment>
+          ))}
         </tbody>
       </table>
     </div>
@@ -753,10 +755,10 @@ export function DataTableTab({ stage = "1" }) {
                 ) : row._fixApproved === false ? (
                     <span className="text-red-600 font-bold flex items-center bg-red-50 px-2 py-1 rounded border border-red-200">✗ Rejected</span>
                 ) : (
-                    <>
+                    <div className="flex space-x-2">
                         <button onClick={() => handleApprove(row._rowIndex, true)} className={`px-2 py-1 text-xs rounded shadow-sm transition-colors bg-white text-slate-700 hover:bg-slate-50 border border-slate-300 flex items-center font-medium`}><span className="text-green-600 mr-1 font-bold">✓</span> Approve</button>
                         <button onClick={() => handleApprove(row._rowIndex, false)} className={`px-2 py-1 text-xs rounded shadow-sm transition-colors bg-white text-slate-700 hover:bg-slate-50 border border-slate-300 flex items-center font-medium`}><span className="text-red-600 mr-1 font-bold">✗</span> Reject {row.fixingActionScore !== undefined && `(Score ${Math.round(row.fixingActionScore)}${row.fixingActionScore < 10 ? ' < 10' : ''})`}</button>
-                    </>
+                    </div>
                 )}
             </div>
         )}

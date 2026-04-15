@@ -364,9 +364,53 @@ const ImmutableComponents = () => {
           if (!coor) return null;
           const r = Math.max((el.bore || 100) / 2, 50);
           const isSelected = multiSelectedIds.includes(el._rowIndex);
-          const isRest = Object.values(el).some(v => typeof v === 'string' && ['CA150', 'REST'].includes(v.toUpperCase()));
-          const isGui  = Object.values(el).some(v => typeof v === 'string' && ['CA100', 'GUI'].includes(v.toUpperCase()));
-          const finalColor = isSelected ? appSettings.selectionColor : (isRest || isGui ? '#22c55e' : typeColor(el.type, appSettings));
+          const color = isSelected ? appSettings.selectionColor : '#22c55e';
+          const mat = <meshStandardMaterial color={color} transparent={isTranslucent} opacity={isTranslucent ? 0.35 : 1} depthWrite={!isTranslucent} />;
+
+          // ── Support type classification ──────────────────────────────
+          const supName = (el.supportName || '').toUpperCase();
+          const desc    = (el.description || el.restraintType || el.compName || '').toUpperCase();
+          const skey    = (el.skey || '').toUpperCase();
+          const isGuide  = /CA100/.test(supName) || /GUIDE/.test(desc) || /GUIDE/.test(skey);
+          const isAnchor = !isGuide && (/ANCHOR|LINE[\s_-]?STOP|LIMIT[\s_-]?STOP/.test(desc) || /ANCH|LST|ANS/.test(skey));
+          // else: REST (CA150 default)
+
+          // ── Arrow helper (cone + shaft), points in +Y then rotated ──
+          const Arrow = ({ dir, offset = [0,0,0], scale = 1 }) => {
+            const v = new THREE.Vector3(...dir).normalize();
+            const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), v);
+            const [ox, oy, oz] = offset;
+            return (
+              <group position={[ox, oy, oz]} quaternion={[quat.x, quat.y, quat.z, quat.w]}>
+                {/* cone tip */}
+                <mesh position={[0, r * 1.1 * scale, 0]}>
+                  <coneGeometry args={[r * 0.7 * scale, r * 1.0 * scale, 8]} />
+                  {mat}
+                </mesh>
+                {/* shaft */}
+                <mesh position={[0, r * 0.4 * scale, 0]}>
+                  <cylinderGeometry args={[r * 0.18 * scale, r * 0.18 * scale, r * 0.9 * scale, 8]} />
+                  {mat}
+                </mesh>
+              </group>
+            );
+          };
+
+          // ── Find parent pipe direction for anchor arrows ─────────────
+          let pipeDir = new THREE.Vector3(1, 0, 0); // default East
+          for (const pipe of elements) {
+            if ((pipe.type || '').toUpperCase() !== 'PIPE' || !pipe.ep1 || !pipe.ep2) continue;
+            const ab = new THREE.Vector3(pipe.ep2.x - pipe.ep1.x, pipe.ep2.y - pipe.ep1.y, pipe.ep2.z - pipe.ep1.z);
+            const len = ab.length();
+            if (len < 1) continue;
+            const dirN = ab.clone().divideScalar(len);
+            const ac = new THREE.Vector3(coor.x - pipe.ep1.x, coor.y - pipe.ep1.y, coor.z - pipe.ep1.z);
+            const t = ac.dot(dirN);
+            if (t < -1 || t > len + 1) continue;
+            const perp = ac.clone().sub(dirN.clone().multiplyScalar(t));
+            if (perp.length() < (pipe.bore || 300) * 0.6) { pipeDir = dirN; break; }
+          }
+
           const onSuppClick = (e) => {
             if (e.nativeEvent) e.nativeEvent.__handled3D = true;
             if (useStore.getState().canvasMode !== 'VIEW') return;
@@ -374,21 +418,31 @@ const ImmutableComponents = () => {
             if (e.ctrlKey || e.metaKey) { useStore.getState().toggleMultiSelect(el._rowIndex); }
             else { useStore.getState().clearMultiSelect(); useStore.getState().setSelected(el._rowIndex); useStore.getState().setMultiSelect([el._rowIndex]); }
           };
+
           return (
             <group key={`supp-${i}`} position={[coor.x, coor.y, coor.z]} onPointerDown={onSuppClick}>
-              <mesh position={[0, r * 0.5, 0]}>
-                <cylinderGeometry args={[0, r * 2, r, 8]} />
-                <meshStandardMaterial color={finalColor} transparent={isTranslucent} opacity={isTranslucent ? 0.3 : 1} depthWrite={!isTranslucent} />
-              </mesh>
-              <mesh position={[0, -r * 0.25, 0]}>
-                <cylinderGeometry args={[r, r, r * 0.5, 8]} />
-                <meshStandardMaterial color={finalColor} transparent={isTranslucent} opacity={isTranslucent ? 0.3 : 1} depthWrite={!isTranslucent} />
-              </mesh>
-              {isGui && (
-                <group position={[r * 1.5, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-                  <mesh position={[0, r * 0.5, 0]}><cylinderGeometry args={[0, r * 1.5, r, 8]} /><meshStandardMaterial color={finalColor} /></mesh>
-                  <mesh position={[0, -r * 0.25, 0]}><cylinderGeometry args={[r * 0.8, r * 0.8, r * 0.5, 8]} /><meshStandardMaterial color={finalColor} /></mesh>
-                </group>
+              {isGuide ? (
+                // GUIDE (CA100): two lateral arrows pointing inward from both sides, perpendicular to pipe
+                (() => {
+                  const side = new THREE.Vector3().crossVectors(pipeDir, new THREE.Vector3(0,1,0)).normalize();
+                  if (side.length() < 0.01) side.set(1,0,0);
+                  const s = side.toArray();
+                  const sn = side.clone().negate().toArray();
+                  return (<>
+                    <Arrow dir={sn} offset={[s[0]*r*2, s[1]*r*2, s[2]*r*2]} />
+                    <Arrow dir={s}  offset={[sn[0]*r*2, sn[1]*r*2, sn[2]*r*2]} />
+                  </>);
+                })()
+              ) : isAnchor ? (
+                // ANCHOR / LINE STOP: two arrows along pipe axis + one upward arrow
+                <>
+                  <Arrow dir={pipeDir.toArray()} offset={[pipeDir.x*r*1.5, pipeDir.y*r*1.5, pipeDir.z*r*1.5]} />
+                  <Arrow dir={pipeDir.clone().negate().toArray()} offset={[-pipeDir.x*r*1.5, -pipeDir.y*r*1.5, -pipeDir.z*r*1.5]} />
+                  <Arrow dir={[0, 1, 0]} scale={0.8} />
+                </>
+              ) : (
+                // REST (CA150 / default): single downward arrow (from below, pointing up into pipe)
+                <Arrow dir={[0, -1, 0]} />
               )}
             </group>
           );
@@ -992,7 +1046,7 @@ const LegendLayer = () => {
     const uniqueValues = useMemo(() => {
         if (colorMode === 'SPOOL' || colorMode === 'TYPE' || !colorMode) return [];
         const vals = new Set();
-        dataTable.forEach(r => {
+        (Array.isArray(dataTable) ? dataTable : []).forEach(r => {
             const val = getColorModeValue(r, colorMode);
             if (val) vals.add(val);
         });

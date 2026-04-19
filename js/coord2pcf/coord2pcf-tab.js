@@ -705,7 +705,7 @@ async function _mountCanvas() {
       await Promise.all([
         import('react'),
         import('react-dom/client'),
-        import('../../canvas.jsx'),
+        import('../../canvas.js'),
       ]);
     _canvasRoot = createRoot(mountEl);
     _canvasRoot.render(
@@ -729,7 +729,7 @@ async function _mountCanvas() {
 function _refreshCanvas(forceKey = null) {
   if (!_canvasRoot) return;
   import('react').then(({ default: React }) => {
-    import('../../canvas.jsx').then(({ default: PcfGeneratorUI }) => {
+    import('../../canvas.js').then(({ default: PcfGeneratorUI }) => {
       const route = _parsedRuns.length
         ? _parsedRuns.flatMap(r => r.points).map(p => [p.x, p.y])
         : null;

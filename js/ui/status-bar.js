@@ -10,6 +10,10 @@ import { subscribe } from "../state.js";
 
 const LOG_PREFIX = "[StatusBar]";
 const STATS_CONTAINER_ID = "pipeline-stats-container";
+const STATUS_TEXT_ID = "status-text";
+const STATUS_DOT_ID = "status-dot";
+let _statusFlashTimer = null;
+let _statusRestore = null;
 
 // Version updated as per rule: ver.dd-mm-yy time xx.xx (Task 5 / Rule 8B)
 export const APP_REVISION = "Ver 07-04-2026 (1)";
@@ -51,6 +55,39 @@ export function initStatusBar() {
     // Initial render
     renderStatusBar();
     console.info(`${LOG_PREFIX} Initialised.`);
+}
+
+/**
+ * Show a short-lived, non-intrusive status message in the legacy status area.
+ * This intentionally auto-restores the previous status text after timeout.
+ */
+export function flashStatusNotice(message, type = "warn", ttlMs = 3200) {
+    const textEl = document.getElementById(STATUS_TEXT_ID);
+    const dotEl = document.getElementById(STATUS_DOT_ID);
+    if (!textEl) return;
+
+    if (!_statusRestore) {
+        _statusRestore = {
+            text: textEl.textContent || "Ready",
+            dotClass: dotEl?.className || ""
+        };
+    }
+
+    if (_statusFlashTimer) clearTimeout(_statusFlashTimer);
+
+    textEl.textContent = message;
+    if (dotEl) {
+        dotEl.classList.remove("idle", "ok", "warn", "error");
+        dotEl.classList.add(type === "error" ? "error" : type === "ok" ? "ok" : "warn");
+    }
+
+    _statusFlashTimer = setTimeout(() => {
+        if (!_statusRestore) return;
+        textEl.textContent = _statusRestore.text || "Ready";
+        if (dotEl) dotEl.className = _statusRestore.dotClass || "status-dot idle";
+        _statusRestore = null;
+        _statusFlashTimer = null;
+    }, Math.max(1200, Number(ttlMs) || 3200));
 }
 
 function renderStatusBar() {

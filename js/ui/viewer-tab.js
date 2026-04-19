@@ -474,11 +474,11 @@ async function _render3D() {
         try {
             let mountReactApp;
             try {
-                ({ mountReactApp } = await import('../editor/App.jsx'));
-            } catch (jsxError) {
-                console.warn('[ViewerTab] Vite import failed, retrying browser bundle', jsxError);
                 const bundleUrl = new URL('../editor/App.bundle.js', import.meta.url).href;
                 ({ mountReactApp } = await import(/* @vite-ignore */ bundleUrl));
+            } catch (bundleError) {
+                console.warn('[ViewerTab] Bundle import failed, retrying Vite App.jsx', bundleError);
+                ({ mountReactApp } = await import('../editor/App.jsx'));
             }
 
             const { registerUpdateCallback } = await import('../editor/store.js');

@@ -7,9 +7,10 @@ import { initRayConceptTab }   from './ray-concept/rc-tab.js';
 import { initRayViewerTab }    from './ray-tabs/ray-viewer-tab.js';
 import { initRayMasterData }   from './ray-tabs/ray-masterdata-tab.js';
 import { themeManager }        from './ui/theme-manager.js';
+import { initPcfGlbExporterPanel } from './pcf2glb/ui/PcfGlbExporterPanelWrapper.js';
 import { APP_REVISION } from './ui/status-bar.js';
 
-const TABS = ['ray', 'viewer', 'masterdata', 'pcf-fixer', 'coord2pcf'];
+const TABS = ['ray', 'viewer', 'masterdata', 'pcf-fixer', 'coord2pcf', 'pcf2glb'];
 
 function switchTab(target) {
   const panelMap = {
@@ -17,7 +18,8 @@ function switchTab(target) {
     'viewer': 'viewer',
     'masterdata': 'masterdata',
     'pcf-fixer': 'pcf-fixer',
-    'coord2pcf': 'coord2pcf'
+    'coord2pcf': 'coord2pcf',
+    'pcf2glb': 'pcf2glb'
   };
   TABS.forEach(id => {
     document.getElementById(`rtab-${id}`)?.classList.toggle('active', id === target);

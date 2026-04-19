@@ -231,7 +231,7 @@ export async function mountBrowserPcfFixer(container) {
     </div>
   `;
 
-  const rootUrl = await buildModule(new URL('/js/pcf-fixer-runtime/App.js', import.meta.url).href);
+  const rootUrl = await buildModule(new URL('./App.js', import.meta.url).href);
   const mod = await import(rootUrl);
   const App = mod.default || mod.App || mod;
 

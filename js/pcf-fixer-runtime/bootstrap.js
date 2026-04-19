@@ -1,7 +1,7 @@
 import './exposeStore.js';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import App from '/js/pcf-fixer-runtime/App.js';
+import App from './App.js';
 import './index.css.js';
 
 const TAILWIND_SCRIPT_ID = 'pcf-fixer-tailwind-runtime';

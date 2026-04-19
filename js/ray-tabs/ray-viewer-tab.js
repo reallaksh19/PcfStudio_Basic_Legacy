@@ -84,7 +84,17 @@ async function _runGenerate() {
       console.warn(`${LOG_PREFIX} App.bundle.js import failed, retrying App.jsx`, bundleError);
       ({ mountReactApp } = await import('../editor/App.jsx'));
     }
-    mountReactApp('react-root', { components: _processed.components });
+    try {
+      mountReactApp('react-root', { components: _processed.components });
+    } catch (renderErr) {
+      console.warn(`${LOG_PREFIX} React viewer mount failed, keeping data-only mode`, renderErr);
+      try {
+        const { flashStatusNotice } = await import('../ui/status-bar.js');
+        flashStatusNotice('⚠ 3D viewer UI failed; data still loaded', 'warn', 3000);
+      } catch {}
+      _switchView('TABLE');
+      return;
+    }
     const reactRoot = document.getElementById('react-root');
     if (reactRoot) reactRoot.style.display = 'block';
     _switchView('3D');

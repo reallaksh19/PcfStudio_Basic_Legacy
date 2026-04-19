@@ -78,11 +78,11 @@ async function _runGenerate() {
     // Mount React 3D app then reveal the canvas
     let mountReactApp;
     try {
-      ({ mountReactApp } = await import('../editor/App.jsx'));
-    } catch (jsxError) {
-      console.warn(`${LOG_PREFIX} App.jsx import failed, retrying bundle`, jsxError);
       const bundleUrl = new URL('../editor/App.bundle.js', import.meta.url).href;
       ({ mountReactApp } = await import(/* @vite-ignore */ bundleUrl));
+    } catch (bundleError) {
+      console.warn(`${LOG_PREFIX} App.bundle.js import failed, retrying App.jsx`, bundleError);
+      ({ mountReactApp } = await import('../editor/App.jsx'));
     }
     mountReactApp('react-root', { components: _processed.components });
     const reactRoot = document.getElementById('react-root');

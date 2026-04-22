@@ -1,17 +1,17 @@
 import React from 'react';
-import { useAppContext } from '/js/pcf-fixer-runtime/store/AppContext.js';
-import { runSmartFix } from '/js/pcf-fixer-runtime/engine/Orchestrator.js';
-import { applyFixes } from '/js/pcf-fixer-runtime/engine/FixApplicator.js';
-import { createLogger } from '/js/pcf-fixer-runtime/utils/Logger.js';
-import { runValidationChecklist } from '/js/pcf-fixer-runtime/engine/Validator.js';
-import { runDataProcessor } from '/js/pcf-fixer-runtime/engine/DataProcessor.js';
-import { PcfTopologyGraph2, applyApprovedMutations } from '/js/pcf-fixer-runtime/engine/PcfTopologyGraph2.js';
-import { useStore } from '/js/pcf-fixer-runtime/store/useStore.js';
-import { useTopologyWorker } from '/js/pcf-fixer-runtime/workers/useTopologyWorker.js';
+import { useAppContext } from '../../store/AppContext.js';
+import { runSmartFix } from '../../engine/Orchestrator.js';
+import { applyFixes } from '../../engine/FixApplicator.js';
+import { createLogger } from '../../utils/Logger.js';
+import { runValidationChecklist } from '../../engine/Validator.js';
+import { runDataProcessor } from '../../engine/DataProcessor.js';
+import { PcfTopologyGraph2, applyApprovedMutations } from '../../engine/PcfTopologyGraph2.js';
+import { useStore } from '../../store/useStore.js';
+import { useTopologyWorker } from '../../workers/useTopologyWorker.js';
 
 // Whether to offload Group 2 topology work to a Web Worker.
 // Disable if your browser/environment doesn't support module workers.
-import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "../../jsx-runtime.js";
 const USE_WORKER = typeof Worker !== 'undefined';
 export function StatusBar({
   activeTab,

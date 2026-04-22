@@ -4,7 +4,7 @@ import React, { useState, useRef } from 'react';
  * Lightweight hover tooltip.
  * Usage:  <Tooltip text="Explanation here"><label>...</label></Tooltip>
  */
-import { jsx as _jsx, jsxs as _jsxs } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { jsx as _jsx, jsxs as _jsxs } from "../../jsx-runtime.js";
 export function Tooltip({
   text,
   children,

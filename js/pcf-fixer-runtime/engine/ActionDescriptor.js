@@ -1,5 +1,5 @@
-import { vec } from '/js/pcf-fixer-runtime/math/VectorMath.js';
-import { getExitPoint } from '/js/pcf-fixer-runtime/engine/GraphBuilder.js';
+import { vec } from '../math/VectorMath.js';
+import { getExitPoint } from './GraphBuilder.js';
 
 export function populateFixingActions(dataTable, chains, log) {
   for (const row of dataTable) {

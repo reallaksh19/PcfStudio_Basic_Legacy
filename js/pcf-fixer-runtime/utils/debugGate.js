@@ -4,7 +4,7 @@
 // by default in production. Enable via Settings > Debug Console.
 //
 // Usage:
-//   import { dbg } from '/js/pcf-fixer-runtime/utils/debugGate.js';
+//   import { dbg } from './debugGate.js';
 //   dbg.tool('MARQUEE_SELECT', 'Selected 12 elements', { ids });
 //   dbg.event('POINTER_DOWN', 'InstancedPipes hit', { instanceId: 5 });
 //   dbg.state('TRANSLUCENT', 'Mode toggled', { prev: false, next: true });

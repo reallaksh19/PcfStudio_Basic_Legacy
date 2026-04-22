@@ -521,8 +521,9 @@ export async function loadMastersInto(components, cfg, materialOverrides = new M
 
     // ── Step 2: Rating from piping class prefix ─────────────────────
     const s = String(comp.pipingClass || '').trim();
-    const r2 = map2[s.slice(0, 2)];
-    const r1 = map1[s.slice(0, 1)];
+    const digits = (s.match(/\d+/)?.[0] || '');
+    const r2 = digits.length >= 2 ? map2[digits.slice(0, 2)] : map2[s.slice(0, 2)];
+    const r1 = digits.length >= 1 ? map1[digits.slice(0, 1)] : map1[s.slice(0, 1)];
     const newRating = r2 ?? r1 ?? null;
     const recalculatedRating = newRating != null ? newRating : '';
     if (String(comp.rating ?? '') !== String(recalculatedRating)) changed = true;

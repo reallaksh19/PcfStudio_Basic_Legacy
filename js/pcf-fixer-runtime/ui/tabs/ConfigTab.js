@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { useAppContext } from '/js/pcf-fixer-runtime/store/AppContext.js';
-import { Tooltip } from '/js/pcf-fixer-runtime/ui/components/Tooltip.js';
-import { jsx as _jsx, jsxs as _jsxs } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { useAppContext } from '../../store/AppContext.js';
+import { Tooltip } from '../components/Tooltip.js';
+import { jsx as _jsx, jsxs as _jsxs } from "../../jsx-runtime.js";
 export function ConfigTab() {
   const {
     state,

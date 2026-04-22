@@ -1,4 +1,4 @@
-import { vec } from '/js/pcf-fixer-runtime/math/VectorMath.js';
+import { vec } from '../../math/VectorMath.js';
 
 export function runBrnRules(element, context, prevElement, elemAxis, elemDir, config, log) {
   const type = (element.type || "").toUpperCase();

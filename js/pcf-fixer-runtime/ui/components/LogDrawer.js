@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useAppContext } from '/js/pcf-fixer-runtime/store/AppContext.js';
-import { jsxs as _jsxs, jsx as _jsx } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { useAppContext } from '../../store/AppContext.js';
+import { jsxs as _jsxs, jsx as _jsx } from "../../jsx-runtime.js";
 export const LogDrawer = () => {
   const {
     state

@@ -1,6 +1,6 @@
 // @ts-check
-/** @typedef {import('/js/pcf-fixer-runtime/engine/types.js').PcfCoord} PcfCoord */
-/** @typedef {import('/js/pcf-fixer-runtime/engine/types.js').PcfComponent} PcfComponent */
+/** @typedef {import('./types.js').PcfCoord} PcfCoord */
+/** @typedef {import('./types.js').PcfComponent} PcfComponent */
 
 /**
  * Pathfinder.js

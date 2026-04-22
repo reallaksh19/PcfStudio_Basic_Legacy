@@ -39,13 +39,6 @@ export function convertAvevaXmlToRawCsv(xmlText) {
   const branchName = doc.querySelector('Branchname')?.textContent?.trim?.() || '';
   const nodes = [...doc.getElementsByTagName('Node')];
 
-  const grouped = new Map();
-  for (const n of nodes) {
-    const ref = text(n, 'ComponentRefNo') || `AUTO-${grouped.size + 1}`;
-    if (!grouped.has(ref)) grouped.set(ref, []);
-    grouped.get(ref).push(n);
-  }
-
   const headers = [
     'Sequence', 'NodeNo', 'NodeName', 'componentName', 'Description', 'Type', 'RefNo', 'Point', 'PPoint',
     'Bore', 'O/D', 'Radius', 'Material', 'Rigid', 'East', 'North', 'Up',
@@ -57,48 +50,46 @@ export function convertAvevaXmlToRawCsv(xmlText) {
   const rows = [];
   let sequence = 1;
 
-  for (const [, compNodes] of grouped.entries()) {
-    const first = compNodes[0];
-    const type = normalizeType(text(first, 'ComponentType'));
-    for (const node of compNodes) {
-      const endpoint = text(node, 'Endpoint');
-      const point = ['0', '1', '2', '3'].includes(endpoint) ? endpoint : '1';
-      const od = text(node, 'OutsideDiameter');
-      const wt = text(node, 'WallThickness');
-      const bore = od && wt ? Math.max(0, (parseFloat(od) - 2 * parseFloat(wt))).toFixed(3) : od;
-      const pos = parsePosition(text(node, 'Position'));
-      const restraint = node.getElementsByTagName('Restraint')?.[0] || null;
+  for (const node of nodes) {
+    const rawType = text(node, 'ComponentType');
+    const type = normalizeType(rawType);
+    const endpoint = text(node, 'Endpoint');
+    const point = ['0', '1', '2', '3'].includes(endpoint) ? endpoint : '1';
+    const od = text(node, 'OutsideDiameter');
+    const wt = text(node, 'WallThickness');
+    const bore = od && wt ? Math.max(0, (parseFloat(od) - 2 * parseFloat(wt))).toFixed(3) : od;
+    const pos = parsePosition(text(node, 'Position'));
+    const restraint = node.getElementsByTagName('Restraint')?.[0] || null;
 
-      rows.push({
-        Sequence: sequence++,
-        NodeNo: text(node, 'NodeNumber'),
-        NodeName: text(node, 'NodeName'),
-        componentName: type,
-        Description: type,
-        Type: type,
-        RefNo: text(node, 'ComponentRefNo'),
-        Point: point,
-        PPoint: '',
-        Bore: bore,
-        'O/D': od,
-        Radius: text(node, 'BendRadius'),
-        Material: text(node, 'Material') || '',
-        Rigid: text(node, 'Rigid'),
-        East: pos.east,
-        North: pos.north,
-        Up: pos.up,
-        'Restraint Type': text(restraint, 'Type'),
-        'Restraint Friction': text(restraint, 'Friction'),
-        'Restraint Gap': text(restraint, 'Gap'),
-        CA1: '', CA2: '', CA3: '', CA4: wt, CA5: text(node, 'InsulationThickness'), CA6: '',
-        CA7: text(node, 'CorrosionAllowance'), CA8: text(node, 'Weight'), CA9: '', CA10: '',
-        PipingClass: '',
-        Rating: '',
-        LineNo_key: '',
-        'Pipeline Ref': branchName,
-        Branchname: branchName
-      });
-    }
+    rows.push({
+      Sequence: sequence++,
+      NodeNo: text(node, 'NodeNumber'),
+      NodeName: text(node, 'NodeName'),
+      componentName: rawType || type,
+      Description: rawType || type,
+      Type: rawType || type,
+      RefNo: text(node, 'ComponentRefNo'),
+      Point: point,
+      PPoint: '',
+      Bore: bore,
+      'O/D': od,
+      Radius: text(node, 'BendRadius'),
+      Material: text(node, 'Material') || '',
+      Rigid: text(node, 'Rigid'),
+      East: pos.east,
+      North: pos.north,
+      Up: pos.up,
+      'Restraint Type': text(restraint, 'Type'),
+      'Restraint Friction': text(restraint, 'Friction'),
+      'Restraint Gap': text(restraint, 'Gap'),
+      CA1: '', CA2: '', CA3: '', CA4: wt, CA5: text(node, 'InsulationThickness'), CA6: '',
+      CA7: text(node, 'CorrosionAllowance'), CA8: text(node, 'Weight'), CA9: '', CA10: '',
+      PipingClass: '',
+      Rating: '',
+      LineNo_key: '',
+      'Pipeline Ref': branchName,
+      Branchname: branchName
+    });
   }
 
   return {

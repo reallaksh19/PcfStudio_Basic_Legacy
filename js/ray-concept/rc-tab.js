@@ -1057,7 +1057,7 @@ function _norm(v) {
 async function maybeEditApproxMastersRows(components) {
   const rows = (components || []).filter(c => {
     const t = c?._mastersMeta?.pipingClassMaster;
-    return t?.matched && t?.rowClass && _norm(t.rowClass) !== _norm(c.pipingClass);
+    return t?.matched && (t?.approximate || (t?.rowClass && _norm(t.rowClass) !== _norm(c.pipingClass)));
   });
   if (!rows.length) return;
   await new Promise(resolve => {
@@ -1964,6 +1964,14 @@ function renderIsoPcfTable(root, rows) {
   el.innerHTML = `<table style="border-collapse:collapse"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
 }
 
+function _syncIsoFromLatestComponents() {
+  const base = rcState.finalComponents.length ? rcState.finalComponents : rcState.components;
+  if (!base.length) return [];
+  rcState.isoPcfComponents = buildIsopcfRows(base, getConfig());
+  rcState.isoPcfCsvText = _buildIsoPcfCsvText(rcState.isoPcfComponents);
+  return base;
+}
+
 function switchPreview(root, activeKey) {
   root.querySelectorAll('.rc-preview-btn').forEach(b => {
     const on = b.dataset.preview === activeKey;
@@ -1980,6 +1988,9 @@ function switchPreview(root, activeKey) {
   // Show ISOPCF info button only when ISOPCF CSV tab is active
   const infoBtn = root.querySelector('#rc-btn-isopcf-info');
   if (infoBtn) infoBtn.style.display = activeKey === 'isopcfcsv' ? 'inline-flex' : 'none';
+  if (activeKey === 'isopcfcsv' || activeKey === 'isofinal') {
+    _syncIsoFromLatestComponents();
+  }
   if (activeKey === 'connmap') {
     showConnMapPreview(root, rcState.connectionMatrix);
   } else if (activeKey === '2dcsv') {
@@ -1988,6 +1999,12 @@ function switchPreview(root, activeKey) {
     render2DTable(root, rcState.finalCsv2DText || '(Final 2D CSV not yet generated — run S3/S4 first)', rcState.finalComponents);
   } else if (activeKey === 'isopcfcsv') {
     renderIsoPcfTable(root, rcState.isoPcfComponents);
+  } else if (activeKey === 'isofinal') {
+    if (rcState.finalComponents.length || rcState.components.length) {
+      runS4(root).catch(() => showPreview(root, 'rc-preview-area', rcState.isoMetricPcfText || '(not yet generated)'));
+    } else {
+      showPreview(root, 'rc-preview-area', rcState.isoMetricPcfText || '(not yet generated)');
+    }
   } else if (textMap[activeKey] !== undefined) {
     showPreview(root, 'rc-preview-area', textMap[activeKey] || '(not yet generated)');
   }

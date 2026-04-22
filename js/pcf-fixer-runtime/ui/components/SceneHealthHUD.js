@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useRef } from 'react';
-import { useStore } from '/js/pcf-fixer-runtime/store/useStore.js';
-import { jsx as _jsx, jsxs as _jsxs } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { useStore } from '../../store/useStore.js';
+import { jsx as _jsx, jsxs as _jsxs } from "../../jsx-runtime.js";
 const getDist = (p1, p2) => {
   if (!p1 || !p2) return Infinity;
   const dx = parseFloat(p1.x) - parseFloat(p2.x);

@@ -1,9 +1,9 @@
-import { vec } from '/js/pcf-fixer-runtime/math/VectorMath.js';
-import { runPTEEngine } from '/js/pcf-fixer-runtime/engine/pte-engine.js';
-import { validatePcfData } from '/js/pcf-fixer-runtime/engine/SchemaValidator.js';
-import { convertInchToMmIfEnabled, toStrictNumber } from '/js/pcf-fixer-runtime/../services/bore-utils.js';
-import { getOletBrlen, getTeeBrlen, resolveWeightForCa8 } from '/js/pcf-fixer-runtime/../services/fallbackcontract.js';
-import { detectRating } from '/js/pcf-fixer-runtime/../services/rating-detector.js';
+import { vec } from '../math/VectorMath.js';
+import { runPTEEngine } from './pte-engine.js';
+import { validatePcfData } from './SchemaValidator.js';
+import { convertInchToMmIfEnabled, toStrictNumber } from '../../services/bore-utils.js';
+import { getOletBrlen, getTeeBrlen, resolveWeightForCa8 } from '../../services/fallbackcontract.js';
+import { detectRating } from '../../services/rating-detector.js';
 
 export function runDataProcessor(dataTable, config, logger) {
   logger.push({ stage: "TRANSLATION", type: "Info", message: "═══ RUNNING PRE-VALIDATION DATA PROCESSING (STEPS 1-11) ═══" });

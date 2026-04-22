@@ -48,6 +48,7 @@ function _pcRowCols(row) {
 const PC_CLASS_KEYS  = ['Piping Class', 'piping_class', 'PipingClass'];
 const PC_SIZE_KEYS   = ['Size', 'DN', 'NPS'];
 const PC_RATING_KEYS = ['Rating', 'rating'];
+const _normPc = (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
 // NPS (inches) → NB (mm) lookup — from Pipe size Vs Sch master table (steeltubes.co.in / ASME B36.10)
 const _NPS_TO_DN = new Map([
@@ -83,9 +84,18 @@ function _resolvePipingClassRow(pcData, pipingClass, bore, rating = '') {
   const targetRating = String(rating || '').trim();
 
   // Step 1 — filter to rows where class matches (case-insensitive)
-  const classRows = pcData.filter(row =>
+  let classRows = pcData.filter(row =>
     _firstText(row, PC_CLASS_KEYS).trim().toLowerCase() === pcClassLow
   );
+  let approximateClass = false;
+  if (!classRows.length) {
+    const targetNorm = _normPc(pcClass);
+    classRows = pcData.filter(row => {
+      const rowNorm = _normPc(_firstText(row, PC_CLASS_KEYS));
+      return !!rowNorm && (targetNorm.startsWith(rowNorm) || rowNorm.startsWith(targetNorm));
+    });
+    approximateClass = classRows.length > 0;
+  }
   if (!classRows.length) return null;
 
   // Step 2 — filter to rows where bore matches (handles NPS ↔ DN conversion)
@@ -101,9 +111,13 @@ function _resolvePipingClassRow(pcData, pipingClass, bore, rating = '') {
       const r = _firstText(row, PC_RATING_KEYS);
       return !r || r === targetRating;
     });
-    return ratingRow || boreRows[0];
+    const chosen = ratingRow || boreRows[0];
+    if (chosen && approximateClass) chosen.__approxClassMatch = true;
+    return chosen;
   }
-  return boreRows[0];
+  const chosen = boreRows[0];
+  if (chosen && approximateClass) chosen.__approxClassMatch = true;
+  return chosen;
 }
 
 /**
@@ -466,7 +480,8 @@ export async function loadMastersInto(components, cfg, materialOverrides = new M
         matched: !!pcRow,
         class: comp.pipingClass || '—',
         bore,
-        rating: comp.rating || '—'
+        rating: comp.rating || '—',
+        approximate: !!pcRow?.__approxClassMatch
       };
       if (pcRow) {
         const wall = _firstText(pcRow, ['Wall Thickness', 'Wall thickness', 'WallThickness', 'Wall_Thickness', 'WT', 'Wt']);
@@ -521,8 +536,9 @@ export async function loadMastersInto(components, cfg, materialOverrides = new M
 
     // ── Step 2: Rating from piping class prefix ─────────────────────
     const s = String(comp.pipingClass || '').trim();
-    const r2 = map2[s.slice(0, 2)];
-    const r1 = map1[s.slice(0, 1)];
+    const digits = (s.match(/\d+/)?.[0] || '');
+    const r2 = digits.length >= 2 ? map2[digits.slice(0, 2)] : map2[s.slice(0, 2)];
+    const r1 = digits.length >= 1 ? map1[digits.slice(0, 1)] : map1[s.slice(0, 1)];
     const newRating = r2 ?? r1 ?? null;
     const recalculatedRating = newRating != null ? newRating : '';
     if (String(comp.rating ?? '') !== String(recalculatedRating)) changed = true;

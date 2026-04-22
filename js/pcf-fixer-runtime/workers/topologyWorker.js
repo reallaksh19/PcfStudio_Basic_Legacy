@@ -15,8 +15,8 @@
  *   { type: 'TOPOLOGY_ERROR',    message: string }
  */
 
-import { PcfTopologyGraph2 } from '/js/pcf-fixer-runtime/engine/PcfTopologyGraph2.js';
-import { createLogger } from '/js/pcf-fixer-runtime/utils/Logger.js';
+import { PcfTopologyGraph2 } from '../engine/PcfTopologyGraph2.js';
+import { createLogger } from '../utils/Logger.js';
 
 self.onmessage = (event) => {
   const { type, rows, config, currentPass } = event.data;

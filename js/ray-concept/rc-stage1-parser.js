@@ -76,7 +76,8 @@ const COL = {
   // Piping metadata
   pipingClass: ['PipingClass', 'Piping Class', 'Piping_Class', 'PIPING_CLASS', 'Spec', 'SPEC'],
   rating:      ['Rating', 'RATING', 'PressureRating', 'Pressure Rating', 'Pressure_Rating'],
-  lineNoKey:   ['LineNo_key', 'LineNoKey', 'Line No Key', 'LINENO_KEY', 'LineKey', 'Line No', 'LineNo']
+  lineNoKey:   ['LineNo_key', 'LineNoKey', 'Line No Key', 'LINENO_KEY', 'LineKey', 'Line No', 'LineNo'],
+  pipelineRef: ['Pipeline Ref', 'PIPELINE-REFERENCE', 'PipelineReference', 'Branchname', 'Branch Name']
 };
 
 // ── Support name mapping ──────────────────────────────────────────────────────
@@ -123,8 +124,8 @@ function cleanRefNo(raw) {
 
 // ── PIPELINE-REFERENCE is explicit only ───────────────────────────────────────
 
-function derivePipelineRef() {
-  return '';
+function derivePipelineRef(row) {
+  return resolveCol(row || {}, COL.pipelineRef) || '';
 }
 
 // ── Compute BRLEN from BP and CP ─────────────────────────────────────────────
@@ -236,7 +237,7 @@ export function runStage1(rawCsvText, logFn = () => {}, validationCfg = null) {
     const rawType     = resolveCol(firstRow, COL.type).toUpperCase();
     const canonType   = cfg.typeMap[rawType] ?? rawType;
     const skey        = resolveSkey(canonType, cfg);
-    const pipelineRef = derivePipelineRef();
+    const pipelineRef = derivePipelineRef(firstRow);
 
     logFn('S1', 'row-grouped', refNo, { rawType, rowCount: rows.length });
 

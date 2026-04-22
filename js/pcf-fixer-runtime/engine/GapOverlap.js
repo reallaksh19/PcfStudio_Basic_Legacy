@@ -1,12 +1,12 @@
 // @ts-check
-/** @typedef {import('/js/pcf-fixer-runtime/engine/types.js').PcfComponent} PcfComponent */
-/** @typedef {import('/js/pcf-fixer-runtime/engine/types.js').WalkContext} WalkContext */
-/** @typedef {import('/js/pcf-fixer-runtime/engine/types.js').Config} Config */
-/** @typedef {import('/js/pcf-fixer-runtime/engine/types.js').Logger} Logger */
+/** @typedef {import('./types.js').PcfComponent} PcfComponent */
+/** @typedef {import('./types.js').WalkContext} WalkContext */
+/** @typedef {import('./types.js').Config} Config */
+/** @typedef {import('./types.js').Logger} Logger */
 
-import { vec } from '/js/pcf-fixer-runtime/math/VectorMath.js';
-import { getExitPoint, getEntryPoint } from '/js/pcf-fixer-runtime/engine/GraphBuilder.js';
-import { findPath, rowsToBoundingBoxes } from '/js/pcf-fixer-runtime/engine/Pathfinder.js';
+import { vec } from '../math/VectorMath.js';
+import { getExitPoint, getEntryPoint } from './GraphBuilder.js';
+import { findPath, rowsToBoundingBoxes } from './Pathfinder.js';
 
 /**
  * @param {PcfCoord} gapVector

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useStore } from '/js/pcf-fixer-runtime/store/useStore.js';
-import { useAppContext } from '/js/pcf-fixer-runtime/store/AppContext.js';
-import { dbg } from '/js/pcf-fixer-runtime/utils/debugGate.js';
-import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { useStore } from '../../store/useStore.js';
+import { useAppContext } from '../../store/AppContext.js';
+import { dbg } from '../../utils/debugGate.js';
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "../../jsx-runtime.js";
 const ToolGroup = ({
   title,
   shortTitle,

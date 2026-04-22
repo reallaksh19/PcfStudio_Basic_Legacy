@@ -1,4 +1,4 @@
-import { vec } from '/js/pcf-fixer-runtime/math/VectorMath.js';
+import { vec } from '../math/VectorMath.js';
 
 export function detectElementAxis(element, config) {
   const threshold = Number(config?.smartFixer?.offAxisThreshold ?? 0.5);

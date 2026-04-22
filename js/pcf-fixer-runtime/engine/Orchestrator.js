@@ -1,6 +1,6 @@
-import { buildConnectivityGraph } from '/js/pcf-fixer-runtime/engine/GraphBuilder.js';
-import { walkAllChains } from '/js/pcf-fixer-runtime/engine/Walker.js';
-import { populateFixingActions } from '/js/pcf-fixer-runtime/engine/ActionDescriptor.js';
+import { buildConnectivityGraph } from './GraphBuilder.js';
+import { walkAllChains } from './Walker.js';
+import { populateFixingActions } from './ActionDescriptor.js';
 
 export function runSmartFix(dataTable, config, logger) {
   const currentPass = config.currentPass || 1;

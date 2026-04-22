@@ -1,6 +1,6 @@
-import { vec } from '/js/pcf-fixer-runtime/math/VectorMath.js';
-import { getElementVector } from '/js/pcf-fixer-runtime/engine/AxisDetector.js';
-import { getExitPoint, getEntryPoint } from '/js/pcf-fixer-runtime/engine/GraphBuilder.js';
+import { vec } from '../../math/VectorMath.js';
+import { getElementVector } from '../AxisDetector.js';
+import { getExitPoint, getEntryPoint } from '../GraphBuilder.js';
 
 export function runChnRules(element, context, prevElement, elemAxis, elemDir, config, log) {
   const type = (element.type || "").toUpperCase();

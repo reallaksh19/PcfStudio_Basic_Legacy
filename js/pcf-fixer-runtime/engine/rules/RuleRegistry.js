@@ -33,7 +33,7 @@
  *   });
  */
 
-import { assertValidRule } from '/js/pcf-fixer-runtime/engine/rules/RuleInterface.js';
+import { assertValidRule } from './RuleInterface.js';
 
 // The registry: Map<id, Rule>
 const _registry = new Map();

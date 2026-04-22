@@ -1,5 +1,5 @@
-import { vec } from '/js/pcf-fixer-runtime/math/VectorMath.js';
-import { getEntryPoint, getExitPoint } from '/js/pcf-fixer-runtime/engine/GraphBuilder.js';
+import { vec } from '../../math/VectorMath.js';
+import { getEntryPoint, getExitPoint } from '../GraphBuilder.js';
 
 export function runAggRules(chain, context, config, log) {
   const cfg = config.smartFixer || {};

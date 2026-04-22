@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { useStore } from '/js/pcf-fixer-runtime/store/useStore.js';
-import { useAppContext } from '/js/pcf-fixer-runtime/store/AppContext.js';
-import { jsxs as _jsxs, jsx as _jsx } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { useStore } from '../../store/useStore.js';
+import { useAppContext } from '../../store/AppContext.js';
+import { jsxs as _jsxs, jsx as _jsx } from "../../jsx-runtime.js";
 export const PipelinePropertyPanel = () => {
   const {
     dispatch

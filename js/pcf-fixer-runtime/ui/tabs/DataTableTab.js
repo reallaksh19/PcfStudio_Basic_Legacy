@@ -1,14 +1,14 @@
 import React from 'react';
-import { useAppContext } from '/js/pcf-fixer-runtime/store/AppContext.js';
-import { useStore } from '/js/pcf-fixer-runtime/store/useStore.js';
-import { runValidationChecklist } from '/js/pcf-fixer-runtime/engine/Validator.js';
-import { createLogger } from '/js/pcf-fixer-runtime/utils/Logger.js';
-import { exportToExcel, generatePCFText, parsePCF } from '/js/pcf-fixer-runtime/utils/ImportExport.js';
+import { useAppContext } from '../../store/AppContext.js';
+import { useStore } from '../../store/useStore.js';
+import { runValidationChecklist } from '../../engine/Validator.js';
+import { createLogger } from '../../utils/Logger.js';
+import { exportToExcel, generatePCFText, parsePCF } from '../../utils/ImportExport.js';
 
 // ---------------------------------------------------------------------------
 // Diff View helpers
 // ---------------------------------------------------------------------------
-import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "../../jsx-runtime.js";
 const fmtCoordShort = c => c ? `(${c.x?.toFixed(1)}, ${c.y?.toFixed(1)}, ${c.z?.toFixed(1)})` : '—';
 const DIFF_FIELDS = ['type', 'bore', 'branchBore', 'ep1', 'ep2', 'cp', 'bp', 'skey'];
 function coordEqual(a, b) {

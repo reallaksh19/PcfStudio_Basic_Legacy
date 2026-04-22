@@ -1,9 +1,9 @@
-import '/js/pcf-fixer-runtime/exposeStore.js';
+import './exposeStore.js';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import '/js/pcf-fixer-runtime/index.css.js';
-import App from '/js/pcf-fixer-runtime/App.js';
-import { jsx as _jsx } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import './index.css.js';
+import App from './App.js';
+import { jsx as _jsx } from "./jsx-runtime.js";
 createRoot(document.getElementById('root')).render(_jsx(StrictMode, {
   children: _jsx(App, {})
 }));

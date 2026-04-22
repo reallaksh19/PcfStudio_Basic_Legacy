@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
-import { useAppContext } from '/js/pcf-fixer-runtime/store/AppContext.js';
-import { generatePCFText } from '/js/pcf-fixer-runtime/utils/ImportExport.js';
-import { generateHtmlReport } from '/js/pcf-fixer-runtime/utils/HtmlReporter.js';
-import { jsxs as _jsxs, jsx as _jsx } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { useAppContext } from '../../store/AppContext.js';
+import { generatePCFText } from '../../utils/ImportExport.js';
+import { generateHtmlReport } from '../../utils/HtmlReporter.js';
+import { jsxs as _jsxs, jsx as _jsx } from "../../jsx-runtime.js";
 export function OutputTab() {
   const {
     state

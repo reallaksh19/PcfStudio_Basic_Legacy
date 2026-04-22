@@ -18,7 +18,7 @@ export function useTopologyWorker({ onComplete, onError, onProgress } = {}) {
   const getWorker = useCallback(() => {
     if (!workerRef.current) {
       workerRef.current = new Worker(
-        new URL('/js/pcf-fixer-runtime/workers/topologyWorker.js', import.meta.url),
+        new URL('./topologyWorker.js', import.meta.url),
         { type: 'module' }
       );
     }

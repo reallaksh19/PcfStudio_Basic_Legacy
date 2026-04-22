@@ -1,8 +1,8 @@
-import { vec } from '/js/pcf-fixer-runtime/math/VectorMath.js';
-import { getEntryPoint, getExitPoint } from '/js/pcf-fixer-runtime/engine/GraphBuilder.js';
-import { rayShoot } from '/js/pcf-fixer-runtime/math/VectorMath.js';
+import { vec } from '../math/VectorMath.js';
+import { getEntryPoint, getExitPoint } from './GraphBuilder.js';
+import { rayShoot } from '../math/VectorMath.js';
 
-import { buildConnectivityGraph as spatialGraphBuilder } from '/js/pcf-fixer-runtime/engine/GraphBuilder.js';
+import { buildConnectivityGraph as spatialGraphBuilder } from './GraphBuilder.js';
 
 // ----------------------------------------------------
 // 3D Rule Validation Engine

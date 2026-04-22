@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useStore } from '/js/pcf-fixer-runtime/store/useStore.js';
+import { useStore } from '../../store/useStore.js';
 import { useThree, useFrame } from '@react-three/fiber';
 import { TransformControls } from '@react-three/drei';
 import * as THREE from 'three';
-import { jsx as _jsx, jsxs as _jsxs } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { jsx as _jsx, jsxs as _jsxs } from "../../jsx-runtime.js";
 export const ClippingPlanesLayer = () => {
   const {
     gl,

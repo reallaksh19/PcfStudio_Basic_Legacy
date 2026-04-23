@@ -3,7 +3,14 @@
  */
 
 function text(node, tag) {
-  return node?.getElementsByTagName(tag)?.[0]?.textContent?.trim?.() ?? '';
+  if (!node) return '';
+  const direct = node.getElementsByTagName(tag)?.[0];
+  if (direct?.textContent != null) return direct.textContent.trim();
+  const all = node.getElementsByTagName('*');
+  for (const el of all) {
+    if ((el.localName || el.nodeName) === tag) return el.textContent?.trim?.() ?? '';
+  }
+  return '';
 }
 
 function normalizeType(type = '') {
@@ -35,9 +42,15 @@ export function convertAvevaXmlToRawCsv(xmlText) {
   const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
   const parserErr = doc.querySelector('parsererror');
   if (parserErr) throw new Error('Invalid XML input');
+  const root = doc.documentElement;
+  const rootName = root?.localName || root?.nodeName;
+  if (rootName !== 'PipeStressExport') {
+    throw new Error(`Unsupported XML root "${rootName}". Expected PipeStressExport (PSI116 schema).`);
+  }
 
-  const branchName = doc.querySelector('Branchname')?.textContent?.trim?.() || '';
-  const nodes = [...doc.getElementsByTagName('Node')];
+  const branchName = text(doc, 'Branchname');
+  const nodes = [...doc.getElementsByTagName('Node'), ...[...doc.getElementsByTagName('*')].filter(n => n.localName === 'Node')]
+    .filter((n, i, arr) => arr.indexOf(n) === i);
 
   const headers = [
     'Sequence', 'NodeNo', 'NodeName', 'componentName', 'Description', 'Type', 'RefNo', 'Point', 'PPoint',

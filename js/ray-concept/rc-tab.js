@@ -1390,7 +1390,7 @@ const EDITABLE_2D_COLS = new Set(['PIPELINE-REFERENCE', 'PIPING CLASS', 'RATING'
   'CA1 (Des Pr.)', 'CA2 (Des Temp.)', 'CA3 (Material)', 'CA4 (Wall Thk.)',
   'CA5 (Ins Thk.)', 'CA6 (Ins Den.)', 'CA7 (Corr. Allow.)', 'CA8 (Comp Wt.)',
   'CA9 (Fluid Den.)', 'CA10 (Hydro Pr.)']);
-const FILL_DOWN_2D_COLS = new Set(['LINENO KEY', 'PIPING CLASS', 'RATING',
+const FILL_DOWN_2D_COLS = new Set(['PIPELINE-REFERENCE', 'LINENO KEY', 'PIPING CLASS', 'RATING',
   'CA1 (Des Pr.)', 'CA2 (Des Temp.)', 'CA3 (Material)', 'CA4 (Wall Thk.)',
   'CA5 (Ins Thk.)', 'CA6 (Ins Den.)', 'CA7 (Corr. Allow.)', 'CA8 (Comp Wt.)',
   'CA9 (Fluid Den.)', 'CA10 (Hydro Pr.)']);

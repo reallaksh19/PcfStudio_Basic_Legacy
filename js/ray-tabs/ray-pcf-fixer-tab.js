@@ -32,7 +32,10 @@ export async function initRayPcfFixerTab() {
       console.warn('[RayPcfFixerTab] browser-entry load failed, retrying bootstrap:', browserEntryErr);
       ({ mountBrowserPcfFixer } = await import('../pcf-fixer-runtime/bootstrap.js'));
     }
-    await mountBrowserPcfFixer(container);
+    await Promise.race([
+      mountBrowserPcfFixer(container),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('PCF Fixer mount timed out after 15s')), 15000))
+    ]);
     console.info('[RayPcfFixerTab] PCF-Fixer browser entry mounted successfully');
   } catch (err) {
     console.error('[RayPcfFixerTab] Failed to mount PCF-Fixer browser entry:', err);

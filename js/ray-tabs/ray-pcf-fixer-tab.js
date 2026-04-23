@@ -14,6 +14,19 @@ export async function initRayPcfFixerTab() {
   try {
     let mountBrowserPcfFixer;
     try {
+      const React = await import('react');
+      const { createRoot } = await import('react-dom/client');
+      const appMod = await import('../pcf-fixer/App.jsx');
+      const App = appMod.default || appMod.App;
+      container.innerHTML = '';
+      if (!container.__pcfFixerRoot) container.__pcfFixerRoot = createRoot(container);
+      container.__pcfFixerRoot.render(React.createElement(App));
+      console.info('[RayPcfFixerTab] Mounted src/js/pcf-fixer/App.jsx');
+      return;
+    } catch (srcErr) {
+      console.warn('[RayPcfFixerTab] direct pcf-fixer mount failed, fallback runtime:', srcErr);
+    }
+    try {
       ({ mountBrowserPcfFixer } = await import('../pcf-fixer-runtime/browser-entry.js'));
     } catch (browserEntryErr) {
       console.warn('[RayPcfFixerTab] browser-entry load failed, retrying bootstrap:', browserEntryErr);

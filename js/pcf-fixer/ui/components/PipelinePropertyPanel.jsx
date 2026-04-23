@@ -53,7 +53,7 @@ export const PipelinePropertyPanel = () => {
   if (!isVisible) return null;
 
   return (
-    <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-20 w-80 bg-slate-900 border border-slate-700 shadow-2xl rounded-lg overflow-hidden flex flex-col transition-all mt-4">
+    <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-20 w-80 bg-slate-900 border border-slate-700 shadow-2xl rounded-lg overflow-hidden flex flex-col transition-all mt-4" onPointerDown={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}>
       <div className="bg-slate-800 p-3 border-b border-slate-700 flex justify-between items-center">
         <span className="text-slate-200 font-bold text-sm">Assign Pipeline Ref to {targetIds.length} Items</span>
         <button onClick={() => { clearMultiSelect(); useStore.getState().setSelected(null); useStore.getState().setCanvasMode('VIEW'); }} className="text-slate-400 hover:text-white" title="Cancel">✕</button>

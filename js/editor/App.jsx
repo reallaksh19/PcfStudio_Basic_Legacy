@@ -60,7 +60,13 @@ function CameraBridge() {
     useEffect(() => {
         if (controls) {
             window.__pcfOrbitControls = controls;
-            return () => { if (window.__pcfOrbitControls === controls) delete window.__pcfOrbitControls; };
+            // Abort transition immediately upon user click/zoom to prevent rubberbanding conflict
+            const abort = () => { transRef.current.active = false; };
+            controls.addEventListener('start', abort);
+            return () => { 
+                controls.removeEventListener('start', abort);
+                if (window.__pcfOrbitControls === controls) delete window.__pcfOrbitControls; 
+            };
         }
     }, [controls]);
 

@@ -70,7 +70,8 @@ export function convertAvevaXmlToRawCsv(xmlText) {
     const point = ['0', '1', '2', '3'].includes(endpoint) ? endpoint : '1';
     const od = text(node, 'OutsideDiameter');
     const wt = text(node, 'WallThickness');
-    const bore = od && wt ? Math.max(0, (parseFloat(od) - 2 * parseFloat(wt))).toFixed(3) : od;
+    const nominalBore = text(node, 'NominalDiameter') || text(node, 'NominalBore') || text(node, 'NB');
+    const bore = od || nominalBore;
     const pos = parsePosition(text(node, 'Position'));
     const restraint = node.getElementsByTagName('Restraint')?.[0] || null;
 
@@ -116,7 +117,7 @@ export function convertAvevaXmlToRawCsv(xmlText) {
       'Type': 'ComponentType',
       'Point': 'Endpoint',
       'East/North/Up': 'Position',
-      'Bore': 'OutsideDiameter - 2*WallThickness',
+      'Bore': 'OutsideDiameter (fallback: NominalDiameter/NominalBore/NB)',
       'CA8 (Comp Wt.)': 'Weight'
     }
   };

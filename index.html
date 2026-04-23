@@ -71,15 +71,7 @@
       </svg>
       PCF Fixer
     </button>
-    <!-- Coordinates→PCF: crosshair pin -->
-    <button class="nav-btn" id="rtab-coord2pcf" role="tab">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/>
-        <line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/>
-        <line x1="18" y1="12" x2="22" y2="12"/>
-      </svg>
-      Coord → PCF
-    </button>
+
       <div class="nav-header-inline">
       <div class="app-title">
         <svg class="logo-mark" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -180,12 +172,7 @@
       <div id="pcf-fixer-react-root" style="flex:1;overflow:auto;display:flex;flex-direction:column"></div>
     </section>
 
-    <!-- ⑤ COORDINATES → PCF TAB -->
-    
 
-    <section id="panel-coord2pcf" class="tab-panel" role="tabpanel">
-      <div id="coord2pcf-root" style="display:flex;flex:1;min-height:0"></div>
-    </section>
   </main>
 
   <!-- ── Status Bar ──────────────────────────────────────────────── -->
@@ -201,9 +188,6 @@
 
   <script type="module" src="js/ray-app.js"></script>
   <script>
-    if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-      document.getElementById('rtab-coord2pcf').style.display = 'none';
-    }
   </script>
 </body>
 </html>

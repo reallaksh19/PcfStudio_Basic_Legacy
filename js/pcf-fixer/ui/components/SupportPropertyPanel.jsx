@@ -100,7 +100,7 @@ export const SupportPropertyPanel = () => {
   if (panelState === 'HIDDEN') return null;
 
   return (
-    <div data-testid="support-property-panel" data-panel-state={panelState} className="w-72 bg-slate-900 border border-slate-700 shadow-2xl rounded-lg overflow-hidden flex flex-col transition-all shrink-0" onPointerDown={(e) => e.stopPropagation()}>
+    <div data-testid="support-property-panel" data-panel-state={panelState} className="w-72 bg-slate-900 border border-slate-700 shadow-2xl rounded-lg overflow-hidden flex flex-col transition-all shrink-0" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
       <div className="bg-slate-800 p-3 border-b border-slate-700 flex justify-between items-center">
         <div className="flex items-center gap-2">
             <button data-testid="support-panel-toggle" onClick={() => setIsCollapsed(!isCollapsed)} className="text-red-500 hover:text-red-400 text-xs">

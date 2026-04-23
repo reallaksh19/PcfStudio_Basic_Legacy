@@ -4,6 +4,8 @@ import { ExcelParser } from "./excel-parser.js"; // Import ExcelParser
 import { materialService } from "./material-service.js"; // Import MaterialService
 
 const MOD = 'DataManager';
+const PIPING_CLASS_STORAGE_KEY = 'pcf_master_pipingclass';
+const PIPING_CLASS_STORAGE_FORMAT = 'pcf_pipingclass_compact_v1';
 
 /**
  * Central Data Store for the Integration Module.
@@ -115,6 +117,65 @@ export class DataManager {
         this._readyCallbacks = [];
     }
 
+    _packPipingClassForStorage(rows) {
+        if (!Array.isArray(rows) || rows.length === 0) return [];
+        const headerSet = new Set();
+        for (const row of rows) {
+            if (!row || typeof row !== 'object') continue;
+            for (const key of Object.keys(row)) headerSet.add(key);
+        }
+        const headers = [...headerSet];
+        if (!headers.length) return [];
+
+        const dict = [];
+        const dictIndex = new Map();
+        const toIndex = (value) => {
+            const text = value == null ? '' : String(value);
+            const hit = dictIndex.get(text);
+            if (hit != null) return hit;
+            const idx = dict.length;
+            dict.push(text);
+            dictIndex.set(text, idx);
+            return idx;
+        };
+        const packedRows = rows.map((row) => headers.map((h) => toIndex(row?.[h])));
+        return {
+            __format: PIPING_CLASS_STORAGE_FORMAT,
+            headers,
+            dict,
+            rows: packedRows
+        };
+    }
+
+    _unpackPipingClassFromStorage(payload) {
+        if (Array.isArray(payload)) return payload;
+        if (!payload || payload.__format !== PIPING_CLASS_STORAGE_FORMAT) return [];
+        const headers = Array.isArray(payload.headers) ? payload.headers : [];
+        const dict = Array.isArray(payload.dict) ? payload.dict : [];
+        const rows = Array.isArray(payload.rows) ? payload.rows : [];
+        if (!headers.length || !rows.length) return [];
+        return rows.map((packed) => {
+            const row = {};
+            for (let i = 0; i < headers.length; i++) {
+                const idx = Array.isArray(packed) ? packed[i] : null;
+                row[headers[i]] = Number.isInteger(idx) && idx >= 0 && idx < dict.length ? dict[idx] : '';
+            }
+            return row;
+        });
+    }
+
+    getPipingClassMasterFromStorage() {
+        try {
+            const raw = localStorage.getItem(PIPING_CLASS_STORAGE_KEY);
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            return this._unpackPipingClassFromStorage(parsed);
+        } catch (e) {
+            console.warn('[DataManager] Failed to decode stored piping class master:', e);
+            return [];
+        }
+    }
+
     // ── Persistence ──────────────────────────────────────────────────
 
     saveToStorage(type = null) {
@@ -122,7 +183,7 @@ export class DataManager {
             if (!type || type === 'weights')
                 localStorage.setItem('pcf_master_weights', JSON.stringify(this.weightData));
             if (!type || type === 'pipingclass')
-                localStorage.setItem('pcf_master_pipingclass', JSON.stringify(this.pipingClassMaster));
+                localStorage.setItem(PIPING_CLASS_STORAGE_KEY, JSON.stringify(this._packPipingClassForStorage(this.pipingClassMaster)));
             if (!type || type === 'linedump')
                 localStorage.setItem('pcf_master_linedump', JSON.stringify(this.lineDumpData));
             if (!type || type === 'linelist')
@@ -161,7 +222,8 @@ export class DataManager {
             // Logic Fix: Only parse the massive piping class into active memory if the user's config explicitly asks for it.
             // Otherwise, leave it safely dormant in localStorage.
             if (autoLoadPipingClass) {
-                this.pipingClassMaster = safeParse('pcf_master_pipingclass', []);
+                const storedPipingClass = safeParse(PIPING_CLASS_STORAGE_KEY, []);
+                this.pipingClassMaster = this._unpackPipingClassFromStorage(storedPipingClass);
                 console.info(`[DataManager] Piping Class Master auto-loaded into memory (${this.pipingClassMaster.length} rows) because toggle is ON.`);
             } else {
                 this.pipingClassMaster = [];

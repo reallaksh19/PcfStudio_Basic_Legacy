@@ -13,24 +13,30 @@ export async function initRayPcfFixerTab() {
 
   try {
     let mountBrowserPcfFixer;
-    try {
-      const React = await import('react');
-      const { createRoot } = await import('react-dom/client');
-      const appMod = await import('../pcf-fixer/App.jsx');
-      const App = appMod.default || appMod.App;
-      container.innerHTML = '';
-      if (!container.__pcfFixerRoot) container.__pcfFixerRoot = createRoot(container);
-      container.__pcfFixerRoot.render(React.createElement(App));
-      console.info('[RayPcfFixerTab] Mounted src/js/pcf-fixer/App.jsx');
-      return;
-    } catch (srcErr) {
-      console.warn('[RayPcfFixerTab] direct pcf-fixer mount failed, fallback runtime:', srcErr);
+    // Only attempt to load raw JSX if we are in Vite dev mode, to avoid strict MIME type console errors
+    const isViteDev = !!(import.meta.env && import.meta.env.MODE === 'development') || 
+                      document.querySelector('script[src*="@vite/client"]') !== null;
+    if (isViteDev) {
+      try {
+        const React = await import('react');
+        const { createRoot } = await import('react-dom/client');
+        await import('../pcf-fixer/index.css');
+        const appMod = await import('../pcf-fixer/App.jsx');
+        const App = appMod.default || appMod.App;
+        container.innerHTML = '';
+        if (!container.__pcfFixerRoot) container.__pcfFixerRoot = createRoot(container);
+        container.__pcfFixerRoot.render(React.createElement(App));
+        console.info('[RayPcfFixerTab] Mounted src/js/pcf-fixer/App.jsx');
+        return;
+      } catch (srcErr) {
+        console.warn('[RayPcfFixerTab] direct pcf-fixer mount failed, fallback runtime:', srcErr);
+      }
     }
     try {
-      ({ mountBrowserPcfFixer } = await import('../pcf-fixer-runtime/browser-entry.js'));
-    } catch (browserEntryErr) {
-      console.warn('[RayPcfFixerTab] browser-entry load failed, retrying bootstrap:', browserEntryErr);
       ({ mountBrowserPcfFixer } = await import('../pcf-fixer-runtime/bootstrap.js'));
+    } catch (bootstrapErr) {
+      console.warn('[RayPcfFixerTab] bootstrap load failed, retrying browser-entry:', bootstrapErr);
+      ({ mountBrowserPcfFixer } = await import('../pcf-fixer-runtime/browser-entry.js'));
     }
     await Promise.race([
       mountBrowserPcfFixer(container),

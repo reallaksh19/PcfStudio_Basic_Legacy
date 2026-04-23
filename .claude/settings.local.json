@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(xargs grep:*)",
+      "Bash(dir \"C:\\\\Code3\\\\GLB Viewers\\\\viewer\\\\js\\\\pcf2glb\" /s /b /a-d)",
+      "Bash(findstr /i \"adapter serial build\")",
+      "Bash(grep -v \"\\\\.css$\\\\|\\\\.js$\")",
+      "Bash(dir \"C:\\\\Code3\\\\GLB Viewers and PCF GLB converter\\\\viewer\\\\js\\\\pcf2glb\\\\settings\" /b)",
+      "Bash(dir \"C:\\\\Code3\\\\GLB Viewers and PCF GLB converter\\\\viewer\\\\js\\\\pcf2glb\\\\ui\" /b)",
+      "Bash(dir \"C:\\\\Code3\\\\GLB Viewers and PCF GLB converter\\\\viewer\\\\tabs\" /b)",
+      "Bash(grep -E \"\\\\.js$\")"
+    ]
+  }
+}

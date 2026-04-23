@@ -16,6 +16,7 @@ import { lookupPipelineRefs, formatDetailForLog } from './rc-pipeline-lookup.js'
 import { getConfig }          from '../config/config-store.js';
 import { linelistService }    from '../services/linelist-service.js';
 import { dataManager }        from '../services/data-manager.js';
+import { masterTableService } from '../services/master-table-service.js';
 import { readExcelAsCSV, isExcelFile } from '../input/excel-parser.js';
 import { showMaterialCodePopup } from '../ui/material-code-popup.js';
 import { convertAvevaXmlToRawCsv } from './rc-xml-import.js';
@@ -135,6 +136,7 @@ function buildPanelHTML() {
     <div class="rc-action-group enrichment">
       <span class="rc-action-group-label">Enrich</span>
       <button id="rc-btn-pipeline-lookup" style="${actionPill}" disabled title="Match component coordinates against Line Dump from E3D to populate Pipeline Reference, Line No Key, Piping Class and Rating on Final 2D CSV">${ICO.mapPin} Pipeline Ref</button>
+      <button id="rc-btn-derive-lineno" style="${actionPill}" title="Derive blank LINENO KEY and PIPING CLASS from PIPELINE-REFERENCE in Final 2D CSV">${ICO.mapPin} LineNo Key</button>
       <button id="rc-btn-load-masters" style="${actionPill}" disabled>${ICO.database} Masters</button>
       <button id="rc-btn-reset-ca" style="${actionPill}" disabled title="Clear all CA-related properties for all components">Reset CA</button>
       <span id="rc-masters-status" style="font-size:0.68rem;color:var(--text-muted);font-family:var(--font-inter)"></span>
@@ -399,6 +401,7 @@ function wireEvents(root) {
 
   // Pipeline lookup button
   root.querySelector('#rc-btn-pipeline-lookup').addEventListener('click', () => runPipelineLookup(root));
+  root.querySelector('#rc-btn-derive-lineno').addEventListener('click', () => runDeriveLineNoKey(root));
 
   // Export dropdown toggle — use fixed positioning to escape overflow:auto clip
   root.querySelector('#rc-btn-export-toggle').addEventListener('click', () => {
@@ -763,6 +766,21 @@ const _TAB_NPS_TO_DN = new Map([
   [30,800],[32,850],[34,900],[36,950]
 ]);
 const _TAB_DN_TO_NPS = new Map([..._TAB_NPS_TO_DN.entries()].map(([nps,dn]) => [dn, nps]));
+const _TAB_OD_TO_DN_ROWS = (() => {
+  const t1 = masterTableService.getTables?.()?.table1EqualTee || [];
+  return t1.map(r => ({ dn: Number.parseFloat(r?.bore_mm), od: Number.parseFloat(r?.od_mm) }))
+    .filter(r => Number.isFinite(r.dn) && Number.isFinite(r.od));
+})();
+const _tabFuzzyMmEq = (a, b) => Math.abs(a - b) <= Math.max(1.5, Math.abs(b) * 0.006);
+function _tabFuzzyDnFromOd(odMm) {
+  let bestDn = null, bestOd = null, bestErr = Infinity;
+  for (const r of _TAB_OD_TO_DN_ROWS) {
+    const e = Math.abs(odMm - r.od);
+    if (e < bestErr) { bestErr = e; bestDn = r.dn; bestOd = r.od; }
+  }
+  if (bestDn == null || bestOd == null) return null;
+  return _tabFuzzyMmEq(odMm, bestOd) ? bestDn : null;
+}
 
 /** Read numeric size from a PC master row — two-pass case-insensitive key scan. */
 function _pcRowSize(row) {
@@ -789,6 +807,18 @@ function _tabBoreMatches(compBore, pcSize) {
   if (nps !== undefined && Math.abs(nps - pcSize) < 0.01) return true;
   const dn  = _TAB_NPS_TO_DN.get(compBore);              // comp is NPS → DN mm
   if (dn  !== undefined && Math.abs(dn  - pcSize) < 1)   return true;
+  const compDnFromOd = _tabFuzzyDnFromOd(compBore);      // comp is OD mm → DN/NPS
+  if (compDnFromOd != null) {
+    if (Math.abs(compDnFromOd - pcSize) < 1) return true;
+    const npsFromOd = _TAB_DN_TO_NPS.get(Math.round(compDnFromOd));
+    if (npsFromOd !== undefined && Math.abs(npsFromOd - pcSize) < 0.01) return true;
+  }
+  const pcDnFromOd = _tabFuzzyDnFromOd(pcSize);          // pcSize is OD mm → DN/NPS
+  if (pcDnFromOd != null) {
+    if (Math.abs(compBore - pcDnFromOd) < 1) return true;
+    const pcAsNps = _TAB_DN_TO_NPS.get(Math.round(pcDnFromOd));
+    if (pcAsNps !== undefined && Math.abs(compBore - pcAsNps) < 0.01) return true;
+  }
   return false;
 }
 
@@ -800,10 +830,7 @@ function _refreshPcActiveTable(components) {
   // ── Resolve PC master data (live memory first, then localStorage) ──────────
   let pcRaw = dataManager.getPipingClassMaster() || [];
   if (!pcRaw.length) {
-    try {
-      const raw = localStorage.getItem('pcf_master_pipingclass');
-      if (raw) { const p = JSON.parse(raw); if (Array.isArray(p) && p.length) pcRaw = p; }
-    } catch (_) {}
+    pcRaw = dataManager.getPipingClassMasterFromStorage?.() || [];
   }
   if (!pcRaw.length) {
     rcState.pcActiveTable = [];
@@ -875,19 +902,6 @@ async function runLoadMasters(root) {
   _mastersLog('info', `📥 Masters started (${usingFinal ? 'Final CSV' : '2D CSV'})`, { components: targets.length });
   try {
     const cfg = getConfig();
-    const materialRequests = collectMaterialCodeRequests(targets, cfg);
-    let materialOverrides = new Map();
-    if (materialRequests.length) {
-      const materialMap = dataManager.getMaterialMap?.() || [];
-      materialOverrides = await new Promise(resolve => {
-        showMaterialCodePopup({
-          items: materialRequests,
-          materialMap,
-          onApply: (selections) => resolve(new Map(Object.entries(selections || {}).map(([k, v]) => [String(k || '').toLowerCase().replace(/[^a-z0-9]+/g, '').trim(), String(v || '').trim()]))),
-          onCancel: () => resolve(new Map())
-        });
-      });
-    }
     _mastersLog('info', 'Config loaded', {
       ratingMap2: JSON.stringify(cfg?.ratingPrefixMap?.twoChar || {}),
       ratingMap1: JSON.stringify(cfg?.ratingPrefixMap?.oneChar || {})
@@ -912,10 +926,46 @@ async function runLoadMasters(root) {
       });
     }
 
-    const { updated, pcSnap, pcMissSamples, pcDataActive } = await loadMastersInto(targets, cfg, materialOverrides);
-    rcState.pcActiveTable = pcDataActive || [];
+    // Pass 1: match piping class / masters data first.
+    let pass = await loadMastersInto(targets, cfg, new Map());
+    rcState.pcActiveTable = pass.pcDataActive || [];
     _renderPcActiveTable();
+
+    // Pass 2: allow approximate-class edits, then re-match.
     await maybeEditApproxMastersRows(targets);
+    pass = await loadMastersInto(targets, cfg, new Map());
+    rcState.pcActiveTable = pass.pcDataActive || [];
+    _renderPcActiveTable();
+
+    // Pass 3: run CA3 material mapping popup after class matching.
+    const materialRequests = collectMaterialCodeRequests(targets, cfg);
+    _mastersLog(materialRequests.length ? 'info' : 'warn',
+      materialRequests.length
+        ? `🧪 Material mapping requests: ${materialRequests.length}`
+        : '⚠ Material mapping requests: 0 (all resolved or no material source found)');
+    let materialOverrides = new Map();
+    if (materialRequests.length) {
+      const materialMap = dataManager.getMaterialMap?.() || [];
+      materialOverrides = await new Promise(resolve => {
+        showMaterialCodePopup({
+          items: materialRequests,
+          materialMap,
+          onApply: (selections) => resolve(new Map(
+            Object.entries(selections || {}).map(([k, v]) => [
+              String(k || '').toLowerCase().replace(/[^a-z0-9]+/g, '').trim(),
+              String(v || '').trim()
+            ])
+          )),
+          onCancel: () => resolve(new Map())
+        });
+      });
+    }
+    if (materialOverrides.size > 0) {
+      pass = await loadMastersInto(targets, cfg, materialOverrides);
+      rcState.pcActiveTable = pass.pcDataActive || [];
+      _renderPcActiveTable();
+    }
+    const { updated, pcSnap, pcMissSamples, pcDataActive } = pass;
 
     // ── PC master diagnostic log ─────────────────────────────────────
     if (!pcSnap.loaded) {
@@ -1055,45 +1105,122 @@ function _norm(v) {
 }
 
 async function maybeEditApproxMastersRows(components) {
+  const pcRows = dataManager.getPipingClassMaster?.() || [];
+  const pcClasses = pcRows.map(r =>
+    String(r?.['Piping Class'] || r?.piping_class || r?.PipingClass || '').trim()
+  ).filter(Boolean);
+  const findApproxClass = (pipingClass) => {
+    const target = _norm(pipingClass);
+    if (!target) return '';
+    for (const cls of pcClasses) {
+      const clsNorm = _norm(cls);
+      if (!clsNorm || clsNorm === target) continue;
+      if (target.startsWith(clsNorm) || clsNorm.startsWith(target)) return cls;
+    }
+    return '';
+  };
   const rows = (components || []).filter(c => {
     const t = c?._mastersMeta?.pipingClassMaster;
-    return t?.matched && (t?.approximate || (t?.rowClass && _norm(t.rowClass) !== _norm(c.pipingClass)));
+    if (t?.approximate || (t?.rowClass && _norm(t.rowClass) !== _norm(c.pipingClass))) return true;
+    const approxClass = findApproxClass(c?.pipingClass);
+    if (!approxClass) return false;
+    c._mastersMeta = c._mastersMeta || {};
+    c._mastersMeta.pipingClassMaster = c._mastersMeta.pipingClassMaster || {};
+    c._mastersMeta.pipingClassMaster.approximate = true;
+    c._mastersMeta.pipingClassMaster.rowClass = c._mastersMeta.pipingClassMaster.rowClass || approxClass;
+    return true;
   });
   if (!rows.length) return;
+
+  const pickFirstNonEmpty = (items, read) => {
+    for (const item of items) {
+      const val = String(read(item) ?? '').trim();
+      if (val) return val;
+    }
+    return '';
+  };
+
+  const groupMap = new Map();
+  for (const row of rows) {
+    const pipingClass = String(row?.pipingClass || '').trim();
+    const matchedClass = String(row?._mastersMeta?.pipingClassMaster?.rowClass || '').trim()
+      || findApproxClass(pipingClass);
+    const effectiveClass = pipingClass || matchedClass;
+    const size = String(row?.bore ?? '').trim();
+    const key = `${_norm(effectiveClass)}|${size}`;
+    if (!groupMap.has(key)) groupMap.set(key, { pipingClass: effectiveClass, matchedClass, size, rows: [] });
+    groupMap.get(key).rows.push(row);
+  }
+
+  const groups = [...groupMap.values()].map(group => ({
+    ...group,
+    matchedClass: group.matchedClass || pickFirstNonEmpty(group.rows, r => r?._mastersMeta?.pipingClassMaster?.rowClass),
+    pipingClass: group.pipingClass || pickFirstNonEmpty(group.rows, r => r?.pipingClass) || group.matchedClass || '',
+    rating: pickFirstNonEmpty(group.rows, r => r?.rating),
+    ca3: pickFirstNonEmpty(group.rows, r => r?.ca3),
+    ca4: pickFirstNonEmpty(group.rows, r => r?.ca4),
+    ca7: pickFirstNonEmpty(group.rows, r => r?.ca7)
+  }));
+
   await new Promise(resolve => {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem';
     const panel = document.createElement('div');
-    panel.style.cssText = 'width:min(1100px,95vw);max-height:85vh;overflow:auto;background:var(--bg-1);border:1px solid var(--steel);border-radius:8px;padding:10px;color:var(--text-primary);font-family:var(--font-code)';
-    const header = `<div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:8px\"><b>Approximate Masters Matches (${rows.length})</b><span style=\"font-size:0.75rem;color:var(--text-muted)\">Edit before saving Final 2D CSV</span></div>`;
+    panel.style.cssText = 'width:min(1100px,95vw);max-height:85vh;display:flex;flex-direction:column;overflow:hidden;background:var(--bg-1);border:1px solid var(--steel);border-radius:8px;padding:10px;color:var(--text-primary);font-family:var(--font-code)';
+    const iconBtn = 'display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border:1px solid var(--steel);border-radius:4px;background:var(--bg-0);cursor:pointer';
+    const header = `<div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:8px\">
+      <div><b>Approximate Masters Matches (${groups.length} groups)</b><span style=\"font-size:0.75rem;color:var(--text-muted);margin-left:8px\">${rows.length} rows • grouped by Piping Class + Size</span></div>
+    </div>`;
     const th = 'padding:4px 6px;border:1px solid var(--steel);background:var(--bg-panel);position:sticky;top:0';
     const td = 'padding:2px 4px;border:1px solid rgba(255,255,255,0.08)';
-    panel.innerHTML = `${header}<table style=\"width:100%;border-collapse:collapse;font-size:0.72rem\"><thead><tr><th style=\"${th}\">Ref</th><th style=\"${th}\">Piping Class</th><th style=\"${th}\">Matched Class</th><th style=\"${th}\">Rating</th><th style=\"${th}\">CA3</th><th style=\"${th}\">CA4</th><th style=\"${th}\">CA7</th></tr></thead><tbody>${
-      rows.map((r, i) => `<tr>
-        <td style="${td}">${escapeHtml(r.refNo || r.type || '')}</td>
-        <td style="${td}"><input data-i="${i}" data-k="pipingClass" value="${escapeHtml(r.pipingClass || '')}" style="width:160px"></td>
-        <td style="${td}">${escapeHtml(r?._mastersMeta?.pipingClassMaster?.rowClass || '')}</td>
-        <td style="${td}"><input data-i="${i}" data-k="rating" value="${escapeHtml(r.rating || '')}" style="width:90px"></td>
-        <td style="${td}"><input data-i="${i}" data-k="ca3" value="${escapeHtml(r.ca3 || '')}" style="width:90px"></td>
-        <td style="${td}"><input data-i="${i}" data-k="ca4" value="${escapeHtml(r.ca4 || '')}" style="width:90px"></td>
-        <td style="${td}"><input data-i="${i}" data-k="ca7" value="${escapeHtml(r.ca7 || '')}" style="width:90px"></td>
+    panel.innerHTML = `<div style=\"flex:1;overflow:auto;min-height:0\">${header}<table style=\"width:100%;border-collapse:collapse;font-size:0.72rem\"><thead><tr><th style=\"${th}\">Piping Class</th><th style=\"${th}\">Size</th><th style=\"${th}\">Matched Class</th><th style=\"${th}\">Rows</th><th style=\"${th}\">Rating</th><th style=\"${th}\">CA3</th><th style=\"${th}\">CA4</th><th style=\"${th}\">CA7</th></tr></thead><tbody>${
+      groups.map((g, i) => `<tr>
+        <td style="${td}"><input data-g="${i}" data-k="pipingClass" value="${escapeHtml(g.pipingClass || '')}" style="width:160px"></td>
+        <td style="${td}">${escapeHtml(g.size || '')}</td>
+        <td style="${td}">${escapeHtml(g.matchedClass || '')}</td>
+        <td style="${td}">${g.rows.length}</td>
+        <td style="${td}"><input data-g="${i}" data-k="rating" value="${escapeHtml(g.rating || '')}" style="width:90px"></td>
+        <td style="${td}"><input data-g="${i}" data-k="ca3" value="${escapeHtml(g.ca3 || '')}" style="width:90px"></td>
+        <td style="${td}"><input data-g="${i}" data-k="ca4" value="${escapeHtml(g.ca4 || '')}" style="width:90px"></td>
+        <td style="${td}"><input data-g="${i}" data-k="ca7" value="${escapeHtml(g.ca7 || '')}" style="width:90px"></td>
       </tr>`).join('')
     }</tbody></table>
-    <div style=\"display:flex;gap:8px;justify-content:flex-end;margin-top:10px\">
-      <button id=\"rc-approx-cancel\" style=\"padding:4px 10px\">Skip</button>
-      <button id=\"rc-approx-apply\" style=\"padding:4px 10px;background:var(--amber);border:none;border-radius:4px\">Apply Edits</button>
+    <div style=\"font-size:0.72rem;color:var(--text-muted);margin-top:8px\">Save applies each group edit to all rows in that Piping Class + Size group.</div></div>
+    <div style=\"display:flex;justify-content:flex-end;gap:8px;padding-top:8px;margin-top:8px;border-top:1px solid var(--steel);background:var(--bg-1)\">
+      <button id=\"rc-approx-close-footer\" style=\"${iconBtn}\">
+        <svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><line x1=\"18\" y1=\"6\" x2=\"6\" y2=\"18\"/><line x1=\"6\" y1=\"6\" x2=\"18\" y2=\"18\"/></svg>
+        Close
+      </button>
+      <button id=\"rc-approx-save-footer\" style=\"${iconBtn};background:var(--amber);border:none;color:#000\">
+        <svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z\"/><polyline points=\"17 21 17 13 7 13 7 21\"/><polyline points=\"7 3 7 8 15 8\"/></svg>
+        Save
+      </button>
     </div>`;
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
-    panel.querySelector('#rc-approx-cancel').onclick = () => { overlay.remove(); resolve(); };
-    panel.querySelector('#rc-approx-apply').onclick = () => {
-      panel.querySelectorAll('input[data-i][data-k]').forEach(inp => {
-        const i = Number(inp.dataset.i); const k = inp.dataset.k;
-        rows[i][k] = inp.value.trim();
+
+    const close = () => { overlay.remove(); resolve(); };
+    const save = () => {
+      panel.querySelectorAll('input[data-g][data-k]').forEach(inp => {
+        const i = Number(inp.dataset.g);
+        const k = inp.dataset.k;
+        if (!groups[i]) return;
+        groups[i][k] = inp.value.trim();
       });
-      overlay.remove();
-      resolve();
+      groups.forEach(g => {
+        const classToApply = String(g.pipingClass || g.matchedClass || '').trim();
+        for (const row of g.rows) {
+          row.pipingClass = classToApply;
+          row.rating = g.rating;
+          row.ca3 = g.ca3;
+          row.ca4 = g.ca4;
+          row.ca7 = g.ca7;
+        }
+      });
+      close();
     };
+    panel.querySelector('#rc-approx-close-footer').onclick = close;
+    panel.querySelector('#rc-approx-save-footer').onclick = save;
   });
 }
 
@@ -1186,6 +1313,113 @@ async function runPipelineLookup(root) {
     passLog(root, `✕ Pipeline: ${err.message}`, 'error');
     _mastersLog('error', `❌ ${err.message}`);
   }
+}
+
+// Derive PIPING CLASS and LINENO KEY from PIPELINE-REFERENCE for Final 2D CSV rows.
+// Only blank cells are populated; existing values are preserved.
+function runDeriveLineNoKey(root) {
+  if (!rcState.finalComponents.length && rcState.finalCsv2DText.trim()) {
+    rcState.finalComponents = _rowsFromCsvText(rcState.finalCsv2DText).map(_mastersRowFromCsv);
+  }
+  const rows = rcState.finalComponents;
+  if (!rows.length) {
+    passLog(root, `⚠ Final 2D CSV not ready (run S3 first)`, 'warn');
+    return;
+  }
+
+  const statusEl = root.querySelector('#rc-masters-status');
+  const cfg = getConfig();
+  const lineLogic = cfg?.smartData?.lineNoKeyLogic || cfg?.smartData?.lineNoLogic || {};
+  const classLogic = cfg?.smartData?.pipingClassLogic || {};
+
+  const deriveFromPipelineRef = (pipelineRef, logic, fallbackIndex) => {
+    const rawRef = String(pipelineRef || '').trim();
+    if (!rawRef) return '';
+    const normalizedRef = rawRef.replace(/^[\/\\]+/, '');
+
+    if (logic?.strategy === 'regex' && logic?.regexPattern) {
+      try {
+        const re = new RegExp(logic.regexPattern);
+        const grp = Number(logic.regexGroup ?? 1);
+        const rawMatch = rawRef.match(re);
+        if (rawMatch?.[grp]) return String(rawMatch[grp]).trim();
+        const normalizedMatch = normalizedRef.match(re);
+        if (normalizedMatch?.[grp]) return String(normalizedMatch[grp]).trim();
+      } catch {}
+    }
+
+    const tokenDelimiter = String(logic?.tokenDelimiter || '-');
+    const tokenIndex = Number.isInteger(Number(logic?.tokenIndex))
+      ? Number(logic.tokenIndex)
+      : fallbackIndex;
+
+    const splitByConfiguredDelimiter = normalizedRef
+      .split(tokenDelimiter)
+      .map(v => v.trim())
+      .filter(Boolean);
+    if (tokenIndex >= 0 && splitByConfiguredDelimiter[tokenIndex]) {
+      return splitByConfiguredDelimiter[tokenIndex];
+    }
+
+    const splitByGenericDelimiters = normalizedRef
+      .replace(/[\u201C\u201D\u2033\u02BA\u2036\u2018\u2019]/g, '"')
+      .split(/[-/\\"]+/)
+      .map(v => v.trim())
+      .filter(Boolean);
+    if (tokenIndex >= 0 && splitByGenericDelimiters[tokenIndex]) {
+      return splitByGenericDelimiters[tokenIndex];
+    }
+
+    return splitByGenericDelimiters.at(-1) || splitByConfiguredDelimiter.at(-1) || '';
+  };
+
+  let updatedLineNo = 0;
+  let updatedPipingClass = 0;
+  for (const row of rows) {
+    const pipelineRef = String(row.pipelineRef || '').trim();
+    if (!pipelineRef) continue;
+
+    if (!String(row.pipingClass || '').trim()) {
+      const derivedClass = deriveFromPipelineRef(pipelineRef, classLogic, 4);
+      if (derivedClass) {
+        row.pipingClass = derivedClass;
+        updatedPipingClass++;
+      }
+    }
+
+    if (!String(row.lineNoKey || '').trim()) {
+      const derivedLine = deriveFromPipelineRef(pipelineRef, lineLogic, 3);
+      if (derivedLine) {
+        row.lineNoKey = derivedLine;
+        updatedLineNo++;
+      }
+    }
+  }
+
+  rcState.finalCsv2DText = emit2DCSV(rcState.finalComponents, getRayConfig());
+  render2DTable(root, rcState.finalCsv2DText, rcState.finalComponents);
+  activatePreviewBtn(root, 'final2dcsv');
+
+  const totalUpdated = updatedLineNo + updatedPipingClass;
+  if (statusEl) {
+    statusEl.textContent = totalUpdated > 0
+      ? `✓ Line:${updatedLineNo} Class:${updatedPipingClass}`
+      : `⚠ Line:0 Class:0`;
+  }
+
+  passLog(
+    root,
+    totalUpdated > 0
+      ? `✓ LineNoKey:${updatedLineNo}, PipingClass:${updatedPipingClass} derived`
+      : `⚠ No blank LineNoKey/PipingClass values derived`,
+    totalUpdated > 0 ? 'success' : 'warn'
+  );
+  _mastersLog(
+    totalUpdated > 0 ? 'info' : 'warn',
+    totalUpdated > 0
+      ? `✅ Derive complete — LineNoKey:${updatedLineNo}, PipingClass:${updatedPipingClass}`
+      : `⚠ Derive found no blank targets or no derivable pipeline refs`
+  );
 }
 
 async function runAll(root) {
@@ -1455,6 +1689,7 @@ function ensure2DTableStyles() {
 function render2DTable(root, csvText, sourceRows = rcState.components) {
   const el = root.querySelector('#rc-preview-area');
   if (!el) return;
+  const isFinal2DCsv = sourceRows === rcState.finalComponents;
   ensure2DTableStyles();
   if (!csvText) { el.style.whiteSpace = 'pre'; el.textContent = '(not yet generated)'; return; }
   const lines = csvText.split('\n').filter(l => l.trim());
@@ -1695,6 +1930,38 @@ function render2DTable(root, csvText, sourceRows = rcState.components) {
     'CA10 (Hydro Pr.)':      'ca10',
   };
 
+  const deriveLineNoFromPipelineRef = (pipelineRef) => {
+    const rawRef = String(pipelineRef || '').trim();
+    if (!rawRef) return '';
+    const logic = getConfig()?.smartData?.lineNoLogic || {};
+    const normalizedRef = rawRef.replace(/^[\/\\]+/, '');
+    const readRegex = (text) => {
+      if (!logic.regexPattern) return '';
+      try {
+        const m = text.match(new RegExp(logic.regexPattern));
+        const grp = Number(logic.regexGroup ?? 1);
+        return String((m && m[grp]) || '').trim();
+      } catch {
+        return '';
+      }
+    };
+    if (logic.strategy === 'regex') {
+      const regexVal = readRegex(rawRef) || readRegex(normalizedRef);
+      if (regexVal) return regexVal;
+    }
+    const idx = Number(logic.tokenIndex ?? 2);
+    const delim = String(logic.tokenDelimiter || '-');
+    const splitByCfg = normalizedRef.split(delim).map(s => s.trim()).filter(Boolean);
+    if (Number.isInteger(idx) && idx >= 0 && splitByCfg[idx]) return splitByCfg[idx];
+    const splitGeneric = normalizedRef
+      .replace(/[\u201C\u201D\u2033\u02BA\u2036\u2018\u2019]/g, '"')
+      .split(/[-/\\"]+/)
+      .map(s => s.trim())
+      .filter(Boolean);
+    if (Number.isInteger(idx) && idx >= 0 && splitGeneric[idx]) return splitGeneric[idx];
+    return splitGeneric.at(-1) || splitByCfg.at(-1) || '';
+  };
+
   const inputHandler = (e) => {
     if (!e.target.matches('input[data-row], select[data-row]')) return;
     const ri = +e.target.dataset.row;
@@ -1727,7 +1994,21 @@ function render2DTable(root, csvText, sourceRows = rcState.components) {
 
     const sourceVal = sourceInput.value.trim();
     const sourceRowIdx = Number(sourceInput.dataset.row);
+    const lineNoColIdx = headers.indexOf('LINENO KEY');
     let filled = 0;
+
+    if (isFinal2DCsv && colName === 'PIPELINE-REFERENCE' && lineNoColIdx !== -1) {
+      const sourceComp = sourceRows[sourceRowIdx];
+      const sourceLineNoInput = el.querySelector(`input[data-row="${sourceRowIdx}"][data-col="${lineNoColIdx}"]`);
+      const sourceLineNo = String((sourceLineNoInput?.value ?? sourceComp?.lineNoKey) || '').trim();
+      if (!sourceLineNo) {
+        const derivedSourceLineNo = deriveLineNoFromPipelineRef(sourceVal);
+        if (derivedSourceLineNo) {
+          if (sourceLineNoInput) sourceLineNoInput.value = derivedSourceLineNo;
+          if (sourceComp) sourceComp.lineNoKey = derivedSourceLineNo;
+        }
+      }
+    }
 
     for (const inp of inputs) {
       const rowIdx = Number(inp.dataset.row);
@@ -1739,6 +2020,17 @@ function render2DTable(root, csvText, sourceRows = rcState.components) {
         comp[fieldMap[colName]] = colName === 'RATING'
           ? (Number.isNaN(Number(sourceVal)) ? sourceVal : Number(sourceVal))
           : sourceVal;
+      }
+      if (isFinal2DCsv && colName === 'PIPELINE-REFERENCE' && lineNoColIdx !== -1) {
+        const lineNoInput = el.querySelector(`input[data-row="${rowIdx}"][data-col="${lineNoColIdx}"]`);
+        const existingLineNo = String((lineNoInput?.value ?? comp?.lineNoKey) || '').trim();
+        if (!existingLineNo) {
+          const derivedLineNo = deriveLineNoFromPipelineRef(sourceVal);
+          if (derivedLineNo) {
+            if (lineNoInput) lineNoInput.value = derivedLineNo;
+            if (comp) comp.lineNoKey = derivedLineNo;
+          }
+        }
       }
       inp.classList.add('cell-edited', 'fill-down-applied');
       filled++;

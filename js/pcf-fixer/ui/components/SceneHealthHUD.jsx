@@ -50,14 +50,26 @@ export const SceneHealthHUD = () => {
     for (let i = 0; i < topologyRows.length - 1; i++) {
         const row = topologyRows[i];
         const nextRow = topologyRows[i + 1];
-        if (row.ep2 && nextRow.ep1) {
-            const dist = getDist(row.ep2, nextRow.ep1);
-            if (dist > 0) {
-                if (dist <= 25.0) {
+        
+        if (nextRow.ep1) {
+            let minDist = Infinity;
+            if (row.ep2) minDist = Math.min(minDist, getDist(row.ep2, nextRow.ep1));
+            if (row.ep1) minDist = Math.min(minDist, getDist(row.ep1, nextRow.ep1));
+            if (row.cp) minDist = Math.min(minDist, getDist(row.cp, nextRow.ep1));
+            if (row.bp) minDist = Math.min(minDist, getDist(row.bp, nextRow.ep1));
+
+            if (minDist > 0 && minDist !== Infinity) {
+                if (minDist <= 25.0) {
                     gaps++;
-                    if (dist > maxGap) maxGap = dist;
+                    if (minDist > maxGap) maxGap = minDist;
                 } else {
-                    disconnected++;
+                    // Only flag as a severe disconnect if they nominally belong to the same spool/pipeline
+                    const rRef = row.pipelineRef || row.attributes?.['PIPELINE-REFERENCE'];
+                    const nRef = nextRow.pipelineRef || nextRow.attributes?.['PIPELINE-REFERENCE'];
+                    
+                    if (rRef && nRef && rRef === nRef) {
+                        disconnected++;
+                    }
                 }
             }
         }

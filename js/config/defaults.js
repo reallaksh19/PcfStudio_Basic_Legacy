@@ -379,6 +379,13 @@ export const DEFAULT_CONFIG = {
       regexPattern: "([0-9]+[A-Z]+[0-9]*)",
       regexGroup: 1
     },
+    lineNoKeyLogic: {
+      strategy: "token", // 'token' | 'regex'
+      tokenDelimiter: "-",
+      tokenIndex: 3, // 0-based; default = 4th segment
+      regexPattern: "([A-Z]\\d+)$",
+      regexGroup: 1
+    },
     smartProcessKeywords: {
       P1: ["Design Pressure", "Des Press", "Press", "P1", "Design_P"],
       T1: ["Design Temperature", "Des Temp", "Temp", "T1", "Design_T"],

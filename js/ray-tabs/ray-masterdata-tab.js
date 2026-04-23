@@ -78,6 +78,9 @@ function _buildCaConfigHtml() {
   const pcLogic    = cfg.smartData?.pipingClassLogic || DEFAULT_CONFIG.smartData?.pipingClassLogic || {};
   const pcDelim    = pcLogic.tokenDelimiter || '-';
   const pcSegment  = typeof pcLogic.tokenIndex === 'number' ? pcLogic.tokenIndex + 1 : 5; // UI is 1-based
+  const lkLogic    = cfg.smartData?.lineNoKeyLogic || DEFAULT_CONFIG.smartData?.lineNoKeyLogic || {};
+  const lkDelim    = lkLogic.tokenDelimiter || '-';
+  const lkSegment  = typeof lkLogic.tokenIndex === 'number' ? lkLogic.tokenIndex + 1 : 4; // UI is 1-based
   const elevOffset = cfg.smartData?.e3dElevationOffset ?? 100000;
 
   const caRows = Object.entries(defs).map(([key, def]) => {
@@ -183,6 +186,32 @@ function _buildCaConfigHtml() {
         </div>
       </div>
 
+      <div style="background:var(--bg-panel);border:1px solid var(--steel);border-radius:4px;padding:0.6rem 0.75rem;margin-top:0.6rem">
+        <div style="font-size:0.78rem;font-weight:600;color:var(--text-secondary);margin-bottom:0.4rem">
+          PIPELINE-REFERENCE → LineNo Key
+          <span style="font-size:0.7rem;color:var(--text-muted);font-weight:400;margin-left:0.4rem">
+            — used by 📍 LineNo Key button to derive line key from pipeline reference
+          </span>
+        </div>
+        <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:0.5rem">
+          Splits the pipeline reference by delimiter and picks the Nth segment as line key.
+          e.g. <code style="background:var(--bg-0);padding:1px 4px;border-radius:2px">/BTRM-1000-10-P1710</code> → segment 4 → <strong>P1710</strong>
+        </div>
+        <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+          <label style="font-size:0.75rem;color:var(--text-muted);display:flex;align-items:center;gap:0.4rem">
+            Delimiter
+            <input id="ca-lk-delimiter" type="text" value="${lkDelim}"
+              style="width:36px;font-size:0.75rem;font-family:var(--font-code);background:var(--bg-0);color:var(--text-primary);border:1px solid var(--steel);border-radius:3px;padding:2px 6px;text-align:center">
+          </label>
+          <label style="font-size:0.75rem;color:var(--text-muted);display:flex;align-items:center;gap:0.4rem">
+            Segment #
+            <input id="ca-lk-segment" type="number" min="1" max="20" value="${lkSegment}"
+              style="width:52px;font-size:0.75rem;font-family:var(--font-code);background:var(--bg-0);color:var(--text-primary);border:1px solid var(--steel);border-radius:3px;padding:2px 6px;text-align:center">
+            <span style="color:var(--text-muted);font-size:0.68rem">(1-based, default 4)</span>
+          </label>
+        </div>
+      </div>
+
       <!-- ── Rating Detection — Piping Class Prefix ────────────── -->
       <h3 style="font-family:var(--font-code);font-size:0.85rem;color:var(--amber);margin:1.25rem 0 0.4rem">
         RATING DETECTION — PIPING CLASS PREFIX
@@ -280,6 +309,19 @@ function _saveCaConfig() {
     }
   }
 
+  const lkDelimEl   = document.getElementById('ca-lk-delimiter');
+  const lkSegmentEl = document.getElementById('ca-lk-segment');
+  if (lkDelimEl || lkSegmentEl) {
+    cfg.smartData.lineNoKeyLogic = cfg.smartData.lineNoKeyLogic || {};
+    if (lkDelimEl && lkDelimEl.value.trim()) {
+      cfg.smartData.lineNoKeyLogic.tokenDelimiter = lkDelimEl.value.trim();
+    }
+    if (lkSegmentEl) {
+      const seg = parseInt(lkSegmentEl.value, 10);
+      if (!isNaN(seg) && seg >= 1) cfg.smartData.lineNoKeyLogic.tokenIndex = seg - 1; // store 0-based
+    }
+  }
+
   // Save rating prefix maps
   const readPrefixTable = (tbodyId) => {
     const result = {};
@@ -314,6 +356,8 @@ function _resetCaConfig() {
   cfg.caDefinitions   = DEFAULT_CONFIG.caDefinitions;
   cfg.ratingPrefixMap = DEFAULT_CONFIG.ratingPrefixMap;
   cfg.smartData = cfg.smartData || {};
+  cfg.smartData.pipingClassLogic = DEFAULT_CONFIG.smartData.pipingClassLogic;
+  cfg.smartData.lineNoKeyLogic = DEFAULT_CONFIG.smartData.lineNoKeyLogic;
   cfg.smartData.e3dElevationOffset = DEFAULT_CONFIG.smartData.e3dElevationOffset;
   saveConfig(cfg);
   _reinjectCaPane();

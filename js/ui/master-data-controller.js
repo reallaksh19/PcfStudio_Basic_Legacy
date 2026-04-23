@@ -784,15 +784,9 @@ export class MasterDataController {
         const statusEl  = document.getElementById("pipingclass-status");
         const statusBar = document.getElementById("pipingclass-status-bar");
         try {
-          const raw = localStorage.getItem("pcf_master_pipingclass");
-          if (!raw) {
+          const parsed = dataManager.getPipingClassMasterFromStorage?.() || [];
+          if (!parsed.length) {
             if (statusEl) { statusEl.textContent = "⚠ No piping class data found in localStorage. Load via CSV or upload first."; statusEl.style.color = "var(--amber)"; }
-            if (statusBar) statusBar.style.display = "";
-            return;
-          }
-          const parsed = JSON.parse(raw);
-          if (!Array.isArray(parsed) || parsed.length === 0) {
-            if (statusEl) { statusEl.textContent = "⚠ Stored piping class data is empty."; statusEl.style.color = "var(--amber)"; }
             if (statusBar) statusBar.style.display = "";
             return;
           }
@@ -1430,7 +1424,7 @@ export class MasterDataController {
       const normalized = s.replace(/[\u201C\u201D\u2033\u02BA\u2036\u2018\u2019]/g, '"');
       const parts = normalized.split(/[-/\\"]+/).filter(p => p.trim() !== "");
       if (parts.length >= pos) return parts[pos - 1].trim().toUpperCase();
-      return parts.find(p => p.length >= 4 && /[A-Z0-9]/i.test(p))?.trim().toUpperCase() || "";
+      return parts.find(p => p.length >= 4 && /[A-Z0-9]/i.test(p))?.trim()?.toUpperCase() || "";
     };
 
     const part1 = trySegment(str, segmentPos);

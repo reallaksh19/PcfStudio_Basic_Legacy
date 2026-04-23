@@ -79,6 +79,67 @@ function _resolveHeader(row, preferred, aliases = []) {
   return null;
 }
 
+function _normalizeLineNo(v) {
+  return String(v ?? '')
+    .trim()
+    .replace(/^=/, '')
+    .replace(/[\u201C\u201D\u2033\u02BA\u2036\u2018\u2019]/g, '"')
+    .replace(/\s+/g, '')
+    .toUpperCase();
+}
+
+function _normalizePipelineRef(v) {
+  return String(v ?? '')
+    .trim()
+    .replace(/^=/, '')
+    .replace(/\s+/g, '')
+    .toUpperCase();
+}
+
+function _buildLineDumpLineIndex(lineDump, cols, pipeCol) {
+  const index = new Map();
+  for (const row of lineDump || []) {
+    const hasPipe = pipeCol && row[pipeCol] != null && String(row[pipeCol]).trim() !== '';
+    for (const col of cols) {
+      if (!col) continue;
+      const key = _normalizeLineNo(row[col]);
+      if (!key) continue;
+      const existing = index.get(key);
+      // Prefer a row that carries a non-empty PIPE column for assignment quality.
+      if (!existing || (!existing.hasPipe && hasPipe)) {
+        index.set(key, { row, hasPipe });
+      }
+    }
+  }
+  return index;
+}
+
+function _buildLineDumpPipeIndex(lineDump, pipeCol, lineCols) {
+  const index = new Map();
+  if (!pipeCol) return index;
+  for (const row of lineDump || []) {
+    const pipeKey = _normalizePipelineRef(row[pipeCol]);
+    if (!pipeKey) continue;
+    const hasLine = (lineCols || []).some((col) => _normalizeLineNo(row[col]));
+    const existing = index.get(pipeKey);
+    if (!existing || (!existing.hasLine && hasLine)) {
+      index.set(pipeKey, { row, hasLine });
+    }
+  }
+  return index;
+}
+
+function _getComponentLineCandidates(comp) {
+  const out = [];
+  const add = (v) => {
+    const normalized = _normalizeLineNo(v);
+    if (normalized && !out.includes(normalized)) out.push(normalized);
+  };
+  add(comp?.lineNoKey);
+  add(comp?.ca97);
+  return out;
+}
+
 /**
  * Try to parse a packed position string like "E 150000mm N 152500mm U 1336.5mm"
  * or "E=150000 N=152500 U=1336.5".  Returns {x,y,z} or null.
@@ -152,6 +213,39 @@ function _deriveLineNoFromPipe(pipeStr) {
   return part1;
 }
 
+function _deriveLineNoFromLogic(pipeStr, cfg) {
+  const raw = String(pipeStr || '').trim();
+  if (!raw) return '';
+  const logic = cfg?.smartData?.lineNoKeyLogic || cfg?.smartData?.lineNoLogic || {};
+  const normalized = raw.replace(/^[\/\\]+/, '');
+
+  if (logic.strategy === 'regex' && logic.regexPattern) {
+    try {
+      const re = new RegExp(logic.regexPattern);
+      const grp = Number(logic.regexGroup ?? 1);
+      const mRaw = raw.match(re);
+      if (mRaw && mRaw[grp]) return String(mRaw[grp]).trim();
+      const mNorm = normalized.match(re);
+      if (mNorm && mNorm[grp]) return String(mNorm[grp]).trim();
+    } catch {}
+  }
+
+  if (logic.strategy === 'token' || !logic.strategy || logic.strategy === 'column_lookup') {
+    const delim = String(logic.tokenDelimiter || '-');
+    const idx = Number(logic.tokenIndex ?? 2);
+    const splitByCfg = normalized.split(delim).map(p => p.trim()).filter(Boolean);
+    if (Number.isInteger(idx) && idx >= 0 && splitByCfg[idx]) return splitByCfg[idx];
+  }
+
+  return '';
+}
+
+// Derive line number from pipeline reference using current app config first,
+// then fall back to legacy Line Dump segment parsing for backward compatibility.
+function _deriveLineNo(pipeStr, cfg) {
+  return _deriveLineNoFromLogic(pipeStr, cfg) || _deriveLineNoFromPipe(pipeStr);
+}
+
 // ── Formatter helpers ─────────────────────────────────────────────────────────
 
 function _fmtPt(pt) {
@@ -193,16 +287,25 @@ export function lookupPipelineRefs(components, cfg) {
   ]) || 'Line Number (Derived)';
 
   // Auto-detect which column carries the pipeline/pipe name
-  const PIPE_COL_CANDIDATES = ['PIPE', 'Pipeline', 'PipeRef', 'Pipe Ref', 'pipe_ref', 'pipeline'];
+  const PIPE_COL_CANDIDATES = [
+    'PIPE', 'Pipeline', 'PipeRef', 'Pipe Ref', 'pipe_ref', 'pipeline',
+    'PIPE OF COMPREF', 'PIPE OF COMP REF', 'Pipe of CompRef', 'Pipe Of CompRef',
+    'PIPEOFCOMPREF', 'Branchname', 'Branch Name'
+  ];
   const sampleRow = lineDump[0] || {};
   const pipeCol   = _resolveHeader(sampleRow, null, PIPE_COL_CANDIDATES);
   const lineNoCandidateCols = Object.keys(sampleRow).filter((k) => {
     const n = _normKey(k);
     return n.includes('line') && n.includes('no') && k !== pipeCol;
   });
+  const lineNoLookupCols = [lineNoCol, ...lineNoCandidateCols]
+    .filter(Boolean)
+    .filter((v, i, arr) => arr.indexOf(v) === i);
 
   // Elevation offset: added to Line Dump "Up" coord before matching
   const elevOffset = parseFloat(cfg?.smartData?.e3dElevationOffset ?? 0) || 0;
+  const lineDumpByLineNo = _buildLineDumpLineIndex(lineDump, lineNoLookupCols, pipeCol);
+  const lineDumpByPipe = _buildLineDumpPipeIndex(lineDump, pipeCol, lineNoLookupCols);
 
   // ── Preflight: verify coordinate columns can be resolved ───────────────────
   // Try to parse coordinates from the first Line Dump row.
@@ -244,7 +347,7 @@ export function lookupPipelineRefs(components, cfg) {
       matched:     false,
       matchPoint:  null,
       t:           null,   // projection parameter for segment match
-      pipelineRef: null,
+      pipelineRef: String(comp.pipelineRef || '').trim() || null,
       lineNoKey:   null,
       pipingClass: null,
       rating:      null
@@ -253,7 +356,22 @@ export function lookupPipelineRefs(components, cfg) {
     let match      = null;
     let matchPoint = null;
 
-    if (comp.type === 'SUPPORT') {
+    // Pipeline-ref fallback first: direct map from component pipelineRef to Line Dump pipe column.
+    const pipelineRefKey = _normalizePipelineRef(comp?.pipelineRef);
+    if (pipelineRefKey) {
+      const pipeHit = lineDumpByPipe.get(pipelineRefKey);
+      if (pipeHit) match = pipeHit.row;
+    }
+
+    // Line-based fallback next: when component carries a line-like key, map to E3D row directly.
+    if (!match) for (const key of _getComponentLineCandidates(comp)) {
+      const rowWrap = lineDumpByLineNo.get(key);
+      if (!rowWrap) continue;
+      match = rowWrap.row;
+      break;
+    }
+
+    if (!match && comp.type === 'SUPPORT') {
       // SUPPORT: sphere proximity check against supportCoor
       if (comp.supportCoor) {
         for (const row of lineDump) {
@@ -266,7 +384,7 @@ export function lookupPipelineRefs(components, cfg) {
           }
         }
       }
-    } else {
+    } else if (!match) {
       // All other types: segment-based match (EP1→EP2)
       const ep1 = comp.ep1;
       const ep2 = comp.ep2 || ep1;
@@ -287,6 +405,18 @@ export function lookupPipelineRefs(components, cfg) {
     entry.matchPoint = matchPoint;
 
     if (!match) {
+      const existingLineNo = String(comp.lineNoKey || '').trim();
+      const pipelineRefForFallback = String(comp.pipelineRef || '').trim();
+      const e3dHasLineKeys = lineDumpByLineNo.size > 0;
+      const e3dHasPipeKeys = lineDumpByPipe.size > 0;
+      if (!existingLineNo && pipelineRefForFallback && !e3dHasLineKeys && !e3dHasPipeKeys) {
+        const fallbackLineNo = _deriveLineNo(pipelineRefForFallback, cfg);
+        if (fallbackLineNo) {
+          comp.lineNoKey = fallbackLineNo;
+          entry.lineNoKey = fallbackLineNo;
+          updated++;
+        }
+      }
       detail.push(entry);
       continue;
     }
@@ -328,7 +458,8 @@ export function lookupPipelineRefs(components, cfg) {
       changed = true;
     }
     if (lineNoText === '') {
-      const fallbackLineNo = _deriveLineNoFromPipe(match[pipeCol]);
+      const lineNoSource = entry.pipelineRef || String(comp.pipelineRef || '').trim() || String(match[pipeCol] || '').trim();
+      const fallbackLineNo = _deriveLineNo(lineNoSource, cfg);
       if (fallbackLineNo) {
         lineNoText = fallbackLineNo;
         comp.lineNoKey = fallbackLineNo;

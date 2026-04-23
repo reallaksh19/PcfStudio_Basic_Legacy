@@ -76,15 +76,19 @@ async function _runGenerate() {
     setState('viewer3dComponents', _processed.components);
     _status(`✓ ${_processed.components.length} components.`, 'ok');
     // Mount React 3D app then reveal the canvas
-    let mountReactApp;
+    const bundleUrl = new URL('../editor/App.bundle.js', import.meta.url).href;
+    const { mountReactApp } = await import(/* @vite-ignore */ bundleUrl);
     try {
-      ({ mountReactApp } = await import('../editor/App.jsx'));
-    } catch (jsxError) {
-      console.warn(`${LOG_PREFIX} App.jsx import failed, retrying bundle`, jsxError);
-      const bundleUrl = new URL('../editor/App.bundle.js', import.meta.url).href;
-      ({ mountReactApp } = await import(/* @vite-ignore */ bundleUrl));
+      mountReactApp('react-root', { components: _processed.components });
+    } catch (renderErr) {
+      console.warn(`${LOG_PREFIX} React viewer mount failed, keeping data-only mode`, renderErr);
+      try {
+        const { flashStatusNotice } = await import('../ui/status-bar.js');
+        flashStatusNotice('⚠ 3D viewer UI failed; data still loaded', 'warn', 3000);
+      } catch {}
+      _switchView('TABLE');
+      return;
     }
-    mountReactApp('react-root', { components: _processed.components });
     const reactRoot = document.getElementById('react-root');
     if (reactRoot) reactRoot.style.display = 'block';
     _switchView('3D');

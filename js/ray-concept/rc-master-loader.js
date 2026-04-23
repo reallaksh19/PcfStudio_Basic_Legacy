@@ -48,6 +48,7 @@ function _pcRowCols(row) {
 const PC_CLASS_KEYS  = ['Piping Class', 'piping_class', 'PipingClass'];
 const PC_SIZE_KEYS   = ['Size', 'DN', 'NPS'];
 const PC_RATING_KEYS = ['Rating', 'rating'];
+const _normPc = (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
 // NPS (inches) → NB (mm) lookup — from Pipe size Vs Sch master table (steeltubes.co.in / ASME B36.10)
 const _NPS_TO_DN = new Map([
@@ -58,6 +59,21 @@ const _NPS_TO_DN = new Map([
 ]);
 // NB (mm) → NPS (inches) reverse map
 const _DN_TO_NPS = new Map([..._NPS_TO_DN.entries()].map(([nps, dn]) => [dn, nps]));
+const _OD_TO_DN_ROWS = (() => {
+  const t1 = masterTableService.getTables?.()?.table1EqualTee || [];
+  return t1.map(r => ({ dn: Number.parseFloat(r?.bore_mm), od: Number.parseFloat(r?.od_mm) }))
+    .filter(r => Number.isFinite(r.dn) && Number.isFinite(r.od));
+})();
+const _fuzzyMmEq = (a, b) => Math.abs(a - b) <= Math.max(1.5, Math.abs(b) * 0.006);
+function _fuzzyDnFromOd(odMm) {
+  let bestDn = null, bestOd = null, bestErr = Infinity;
+  for (const r of _OD_TO_DN_ROWS) {
+    const e = Math.abs(odMm - r.od);
+    if (e < bestErr) { bestErr = e; bestDn = r.dn; bestOd = r.od; }
+  }
+  if (bestDn == null || bestOd == null) return null;
+  return _fuzzyMmEq(odMm, bestOd) ? bestDn : null;
+}
 
 /**
  * True when a component bore and a PC master size value refer to the same
@@ -72,6 +88,18 @@ function _boreMatches(compBore, pcSize) {
   if (nps !== undefined && Math.abs(nps - pcSize) < 0.01) return true;
   const dn  = _NPS_TO_DN.get(compBore);                      // comp is NPS → DN mm
   if (dn  !== undefined && Math.abs(dn  - pcSize) < 1) return true;
+  const compDnFromOd = _fuzzyDnFromOd(compBore);             // comp is OD mm → DN/NPS
+  if (compDnFromOd != null) {
+    if (Math.abs(compDnFromOd - pcSize) < 1) return true;
+    const npsFromOd = _DN_TO_NPS.get(Math.round(compDnFromOd));
+    if (npsFromOd !== undefined && Math.abs(npsFromOd - pcSize) < 0.01) return true;
+  }
+  const pcDnFromOd = _fuzzyDnFromOd(pcSize);                 // pcSize is OD mm → DN/NPS
+  if (pcDnFromOd != null) {
+    if (Math.abs(compBore - pcDnFromOd) < 1) return true;
+    const pcAsNps = _DN_TO_NPS.get(Math.round(pcDnFromOd));
+    if (pcAsNps !== undefined && Math.abs(compBore - pcAsNps) < 0.01) return true;
+  }
   return false;
 }
 
@@ -83,9 +111,18 @@ function _resolvePipingClassRow(pcData, pipingClass, bore, rating = '') {
   const targetRating = String(rating || '').trim();
 
   // Step 1 — filter to rows where class matches (case-insensitive)
-  const classRows = pcData.filter(row =>
+  let classRows = pcData.filter(row =>
     _firstText(row, PC_CLASS_KEYS).trim().toLowerCase() === pcClassLow
   );
+  let approximateClass = false;
+  if (!classRows.length) {
+    const targetNorm = _normPc(pcClass);
+    classRows = pcData.filter(row => {
+      const rowNorm = _normPc(_firstText(row, PC_CLASS_KEYS));
+      return !!rowNorm && (targetNorm.startsWith(rowNorm) || rowNorm.startsWith(targetNorm));
+    });
+    approximateClass = classRows.length > 0;
+  }
   if (!classRows.length) return null;
 
   // Step 2 — filter to rows where bore matches (handles NPS ↔ DN conversion)
@@ -95,15 +132,72 @@ function _resolvePipingClassRow(pcData, pipingClass, bore, rating = '') {
   });
   if (!boreRows.length) return null;
 
-  // Step 3 — prefer a row whose rating matches (or has no rating); fall back to first bore match
   if (targetRating) {
     const ratingRow = boreRows.find(row => {
       const r = _firstText(row, PC_RATING_KEYS);
       return !r || r === targetRating;
     });
-    return ratingRow || boreRows[0];
+    const chosen = ratingRow || boreRows[0];
+    return { row: chosen, approximate: approximateClass };
   }
-  return boreRows[0];
+  const chosen = boreRows[0];
+  return { row: chosen, approximate: approximateClass };
+}
+
+function _unwrapPipingClassMatch(matchResult) {
+  if (!matchResult) return { row: null, approximate: false };
+  if (matchResult.row) {
+    return {
+      row: matchResult.row,
+      approximate: Boolean(matchResult.approximate)
+    };
+  }
+  return {
+    row: matchResult,
+    approximate: Boolean(matchResult.__approxClassMatch)
+  };
+}
+
+function _resolvePipingClassMaterialRow(pcData, pipingClass, bore, rating = '') {
+  const exact = _unwrapPipingClassMatch(_resolvePipingClassRow(pcData, pipingClass, bore, rating)).row;
+  if (exact) return exact;
+
+  const pcClass = String(pipingClass || '').trim();
+  if (!pcClass || !Array.isArray(pcData) || !pcData.length) return null;
+  const pcClassLow = pcClass.toLowerCase();
+  const targetRating = String(rating || '').trim();
+
+  let classRows = pcData.filter(row =>
+    _firstText(row, PC_CLASS_KEYS).trim().toLowerCase() === pcClassLow
+  );
+  if (!classRows.length) {
+    const targetNorm = _normPc(pcClass);
+    classRows = pcData.filter(row => {
+      const rowNorm = _normPc(_firstText(row, PC_CLASS_KEYS));
+      return !!rowNorm && (targetNorm.startsWith(rowNorm) || rowNorm.startsWith(targetNorm));
+    });
+  }
+  if (!classRows.length) return null;
+
+  if (targetRating) {
+    const byRating = classRows.find(row => {
+      const r = _firstText(row, PC_RATING_KEYS);
+      return !r || r === targetRating;
+    });
+    return byRating || classRows[0];
+  }
+  return classRows[0];
+}
+
+function _findApproxClassName(pcData, pipingClass) {
+  const targetNorm = _normPc(pipingClass);
+  if (!targetNorm || !Array.isArray(pcData) || !pcData.length) return '';
+  const row = pcData.find((r) => {
+    const rowClass = _firstText(r, PC_CLASS_KEYS);
+    const rowNorm = _normPc(rowClass);
+    return !!rowNorm && (targetNorm.startsWith(rowNorm) || rowNorm.startsWith(targetNorm));
+  });
+  return row ? _firstText(row, PC_CLASS_KEYS) : '';
 }
 
 /**
@@ -270,20 +364,14 @@ export function collectMaterialCodeRequests(components, cfg) {
 
   let pcData = dataManager.getPipingClassMaster() || [];
   if (!pcData.length) {
-    try {
-      const raw = localStorage.getItem('pcf_master_pipingclass');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length) pcData = parsed;
-      }
-    } catch (_) {}
+    pcData = dataManager.getPipingClassMasterFromStorage?.() || [];
   }
 
   for (const comp of Array.isArray(components) ? components : []) {
     const pipingClass = String(comp?.pipingClass || comp?.['PIPING-CLASS'] || '').trim();
     const bore = Number.parseFloat(comp?.bore) || 0;
     const rating = String(comp?.rating || '').trim();
-    const pcRow = _resolvePipingClassRow(pcData, pipingClass, bore, rating);
+    const pcRow = _resolvePipingClassMaterialRow(pcData, pipingClass, bore, rating);
     const rawCsvMaterial = _firstText(comp, ['ca3', 'CA3', 'material', 'Material']);
     const pcMaterial = pcRow ? _firstText(pcRow, ['Material_Name', 'Material Name', 'Material', 'material', 'Mat', 'MAT']) : '';
     const mat = (rawCsvMaterial && (/\s/.test(rawCsvMaterial) || rawCsvMaterial.length > 4))
@@ -329,16 +417,10 @@ export async function loadMastersInto(components, cfg, materialOverrides = new M
   // even though the data is saved in localStorage — mirror the same fallback we use for linelist.
   let pcData = dataManager.getPipingClassMaster() || [];
   if (!pcData.length) {
-    try {
-      const raw = localStorage.getItem('pcf_master_pipingclass');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length) {
-          pcData = parsed;
-          console.info(`[MasterLoader] pcData loaded from localStorage fallback (${pcData.length} rows)`);
-        }
-      }
-    } catch (_) { /* ignore parse errors */ }
+    pcData = dataManager.getPipingClassMasterFromStorage?.() || [];
+    if (pcData.length) {
+      console.info(`[MasterLoader] pcData loaded from localStorage fallback (${pcData.length} rows)`);
+    }
   }
 
   // One-time PC master diagnostic snapshot
@@ -461,17 +543,24 @@ export async function loadMastersInto(components, cfg, materialOverrides = new M
     let pcRow = null;
     const rawCsvMaterial = _firstText(comp, ['ca3', 'CA3', 'material', 'Material']);
     if (comp.pipingClass && pcLookup.length > 0) {
-      pcRow = _resolvePipingClassRow(pcLookup, comp.pipingClass, bore, comp.rating);
+      const matchResult = _resolvePipingClassRow(pcLookup, comp.pipingClass, bore, comp.rating);
+      const pcMatch = _unwrapPipingClassMatch(matchResult);
+      pcRow = pcMatch.row;
       trace.pipingClassMaster = {
         matched: !!pcRow,
         class: comp.pipingClass || '—',
         bore,
-        rating: comp.rating || '—'
+        rating: comp.rating || '—',
+        approximate: pcMatch.approximate
       };
       if (pcRow) {
         const wall = _firstText(pcRow, ['Wall Thickness', 'Wall thickness', 'WallThickness', 'Wall_Thickness', 'WT', 'Wt']);
         if (wall) { comp.ca4 = wall; changed = true; }
-        trace.pipingClassMaster.rowClass  = _firstText(pcRow, ['Piping Class', 'piping_class', 'PipingClass']) || '—';
+        const matchedClass = _firstText(pcRow, PC_CLASS_KEYS);
+        trace.pipingClassMaster.rowClass  = matchedClass || '—';
+        if (!trace.pipingClassMaster.approximate && _normPc(matchedClass) !== _normPc(comp.pipingClass)) {
+          trace.pipingClassMaster.approximate = true;
+        }
         trace.pipingClassMaster.wall      = wall || '— (not found)';
         if (!rawCsvMaterial) trace.pipingClassMaster.warnMat = `CA3 empty — tried: Material_Name, Material Name, Material. Row cols: ${_pcRowCols(pcRow)}`;
         if (!wall) trace.pipingClassMaster.warnWall = `CA4 empty — tried: Wall Thickness, WallThickness, Wall_Thickness. Row cols: ${_pcRowCols(pcRow)}`;
@@ -481,6 +570,11 @@ export async function loadMastersInto(components, cfg, materialOverrides = new M
         trace.pipingClassMaster.searchedClass = diag.searchedClass;
         trace.pipingClassMaster.searchedBore  = diag.searchedBore ?? bore;
         trace.pipingClassMaster.pcRows        = pcData.length;
+        const approxClass = _findApproxClassName(pcData, comp.pipingClass);
+        if (approxClass) {
+          trace.pipingClassMaster.approximate = true;
+          trace.pipingClassMaster.rowClass = approxClass;
+        }
         if (diag.sampleClasses)    trace.pipingClassMaster.sampleClasses    = diag.sampleClasses;
         if (diag.pcBoresForClass)  trace.pipingClassMaster.pcBoresForClass  = diag.pcBoresForClass;
         if (diag.hint)             trace.pipingClassMaster.hint             = diag.hint;
@@ -497,7 +591,8 @@ export async function loadMastersInto(components, cfg, materialOverrides = new M
       trace.pipingClassMaster.reason = 'piping class master is empty';
     }
 
-    const pcMaterial = pcRow ? _firstText(pcRow, ['Material_Name', 'Material Name', 'Material', 'material', 'Mat', 'MAT']) : '';
+    const materialRow = pcRow || _resolvePipingClassMaterialRow(pcLookup, comp.pipingClass, bore, comp.rating);
+    const pcMaterial = materialRow ? _firstText(materialRow, ['Material_Name', 'Material Name', 'Material', 'material', 'Mat', 'MAT']) : '';
     const mat = (rawCsvMaterial && (/\s/.test(rawCsvMaterial) || rawCsvMaterial.length > 4))
       ? rawCsvMaterial
       : pcMaterial;
@@ -521,8 +616,9 @@ export async function loadMastersInto(components, cfg, materialOverrides = new M
 
     // ── Step 2: Rating from piping class prefix ─────────────────────
     const s = String(comp.pipingClass || '').trim();
-    const r2 = map2[s.slice(0, 2)];
-    const r1 = map1[s.slice(0, 1)];
+    const digits = (s.match(/\d+/)?.[0] || '');
+    const r2 = digits.length >= 2 ? map2[digits.slice(0, 2)] : map2[s.slice(0, 2)];
+    const r1 = digits.length >= 1 ? map1[digits.slice(0, 1)] : map1[s.slice(0, 1)];
     const newRating = r2 ?? r1 ?? null;
     const recalculatedRating = newRating != null ? newRating : '';
     if (String(comp.rating ?? '') !== String(recalculatedRating)) changed = true;
@@ -534,7 +630,8 @@ export async function loadMastersInto(components, cfg, materialOverrides = new M
     };
 
     if (comp.pipingClass && pcLookup.length > 0) {
-      const row = pcRow || _resolvePipingClassRow(pcLookup, comp.pipingClass, bore, comp.rating);
+      const matchResult2 = pcRow ? { row: pcRow } : _resolvePipingClassRow(pcLookup, comp.pipingClass, bore, comp.rating);
+      const { row } = _unwrapPipingClassMatch(matchResult2);
       trace.ca7.gate = {
         class: comp.pipingClass || '—',
         bore,

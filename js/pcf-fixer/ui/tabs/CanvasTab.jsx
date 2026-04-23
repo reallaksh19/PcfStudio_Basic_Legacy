@@ -265,42 +265,10 @@ const InstancedPipes = () => {
       }
   };
 
-  const handlePointerMissed = (e) => {
-      // Check if click originated from the HTML UI overlay. e.target is typically the canvas if valid.
-      // e.type is typically 'pointerdown' or 'click' from R3F, but we can also check e.eventObject.
-      // Often, R3F's onPointerMissed fires for UI clicks if they aren't stopped.
-      // We can check if e.nativeEvent?.target is a DOM element outside the canvas or if there's no nativeEvent.
-      if (e.nativeEvent?.__handled3D) {
-          dbg.event('POINTER_MISSED', 'Suppressed — click handled by ImmutableComponent');
-          return;
-      }
-
-      if (typeof dbg !== 'undefined') dbg.event('POINTER_MISSED', 'Fired', {
-          target: e.nativeEvent?.target?.tagName,
-          handled3D: !!e.nativeEvent?.__handled3D,
-          currentSelection: useStore.getState().selectedElementId,
-          multiSelected: useStore.getState().multiSelectedIds?.length || 0
-      });
-
-      if (e.nativeEvent) {
-          const target = e.nativeEvent.target;
-          // If the click is on an input, button, or something that is clearly UI, ignore it.
-          // The canvas itself is usually a `<canvas>` element.
-          if (target && target.tagName !== 'CANVAS') {
-              return;
-          }
-      }
-
-      // Don't clear if Ctrl is held down, allows multi-select to stay persistent across blank clicks
-      if (e && (e.ctrlKey || e.metaKey)) return;
-      useStore.getState().setSelected(null);
-      useStore.getState().clearMultiSelect();
-  };
-
   if (pipes.length === 0) return null;
 
   return (
-    <group onPointerMissed={handlePointerMissed}>
+    <group>
         <instancedMesh ref={meshRef} args={[null, null, pipes.length]} onPointerDown={handlePointerDown}>
           <cylinderGeometry args={[1, 1, 1, 16]} />
           <meshStandardMaterial color="#3b82f6" transparent={translucentMode} opacity={translucentMode ? 0.3 : 1} depthWrite={!translucentMode} />
@@ -358,9 +326,9 @@ const ImmutableComponents = () => {
   return (
     <group>
       {elements.map((el, i) => {
-        // SUPPORT: positioned by supportCoor, not ep1/ep2
+        // SUPPORT: positioned by supportCoor, or coOrds/ep1 fallback
         if ((el.type || '').toUpperCase() === 'SUPPORT') {
-          const coor = el.supportCoor;
+          const coor = el.supportCoor || el.coOrds || el.ep1;
           if (!coor) return null;
           const r = Math.max((el.bore || 100) / 2, 50);
           const isSelected = multiSelectedIds.includes(el._rowIndex);
@@ -375,41 +343,13 @@ const ImmutableComponents = () => {
           const isAnchor = !isGuide && (/ANCHOR|LINE[\s_-]?STOP|LIMIT[\s_-]?STOP/.test(desc) || /ANCH|LST|ANS/.test(skey));
           // else: REST (CA150 default)
 
-          // ── Arrow helper (cone + shaft), points in +Y then rotated ──
-          const Arrow = ({ dir, offset = [0,0,0], scale = 1 }) => {
-            const v = new THREE.Vector3(...dir).normalize();
-            const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), v);
-            const [ox, oy, oz] = offset;
-            return (
-              <group position={[ox, oy, oz]} quaternion={[quat.x, quat.y, quat.z, quat.w]}>
-                {/* cone tip */}
-                <mesh position={[0, r * 1.1 * scale, 0]}>
-                  <coneGeometry args={[r * 0.7 * scale, r * 1.0 * scale, 8]} />
-                  {mat}
-                </mesh>
-                {/* shaft */}
-                <mesh position={[0, r * 0.4 * scale, 0]}>
-                  <cylinderGeometry args={[r * 0.18 * scale, r * 0.18 * scale, r * 0.9 * scale, 8]} />
-                  {mat}
-                </mesh>
-              </group>
-            );
-          };
+          const sR = r * 0.6; // supportRatio = 0.6
+          const stemH = sR * 5;
+          const plateW = sR * 4;
+          const offsetDown = -(r + stemH / 2);
 
-          // ── Find parent pipe direction for anchor arrows ─────────────
-          let pipeDir = new THREE.Vector3(1, 0, 0); // default East
-          for (const pipe of elements) {
-            if ((pipe.type || '').toUpperCase() !== 'PIPE' || !pipe.ep1 || !pipe.ep2) continue;
-            const ab = new THREE.Vector3(pipe.ep2.x - pipe.ep1.x, pipe.ep2.y - pipe.ep1.y, pipe.ep2.z - pipe.ep1.z);
-            const len = ab.length();
-            if (len < 1) continue;
-            const dirN = ab.clone().divideScalar(len);
-            const ac = new THREE.Vector3(coor.x - pipe.ep1.x, coor.y - pipe.ep1.y, coor.z - pipe.ep1.z);
-            const t = ac.dot(dirN);
-            if (t < -1 || t > len + 1) continue;
-            const perp = ac.clone().sub(dirN.clone().multiplyScalar(t));
-            if (perp.length() < (pipe.bore || 300) * 0.6) { pipeDir = dirN; break; }
-          }
+          const upAxis = appSettings.upAxis || 'Z';
+          const upRot = upAxis === 'Z' ? [Math.PI / 2, 0, 0] : [0, 0, 0];
 
           const onSuppClick = (e) => {
             if (e.nativeEvent) e.nativeEvent.__handled3D = true;
@@ -419,32 +359,43 @@ const ImmutableComponents = () => {
             else { useStore.getState().clearMultiSelect(); useStore.getState().setSelected(el._rowIndex); useStore.getState().setMultiSelect([el._rowIndex]); }
           };
 
+          // GUIDE / VG100 — U-channel bracket
+          if (isGuide || supName.includes('VG')) {
+              return (
+                  <group key={`supp-${i}`} position={[coor.x, coor.y, coor.z]} rotation={upRot} onPointerDown={onSuppClick}>
+                      <group position={[0, offsetDown, 0]}>
+                          <mesh position={[-sR * 1.5, 0, 0]}><boxGeometry args={[sR * 0.4, stemH, sR * 0.4]} /><meshStandardMaterial color={isSelected ? color : '#22c55e'} transparent={isTranslucent} opacity={isTranslucent ? 0.35 : 1} depthWrite={!isTranslucent} /></mesh>
+                          <mesh position={[sR * 1.5, 0, 0]}><boxGeometry args={[sR * 0.4, stemH, sR * 0.4]} /><meshStandardMaterial color={isSelected ? color : '#22c55e'} transparent={isTranslucent} opacity={isTranslucent ? 0.35 : 1} depthWrite={!isTranslucent} /></mesh>
+                          <mesh position={[0, -stemH / 2, 0]}><boxGeometry args={[plateW, sR * 0.4, sR * 0.4]} /><meshStandardMaterial color={isSelected ? color : '#22c55e'} transparent={isTranslucent} opacity={isTranslucent ? 0.35 : 1} depthWrite={!isTranslucent} /></mesh>
+                          <mesh position={[0, -stemH / 2 - sR * 0.3, 0]}><boxGeometry args={[plateW * 1.3, sR * 0.3, plateW * 1.3]} /><meshStandardMaterial color={isSelected ? color : '#16a34a'} transparent={isTranslucent} opacity={isTranslucent ? 0.35 : 1} depthWrite={!isTranslucent} /></mesh>
+                      </group>
+                  </group>
+              );
+          }
+
+          // ANCHOR / FIX — Solid cube with crossed bars
+          if (isAnchor || supName.includes('FIX') || supName.includes('DATUM')) {
+              const ancOffset = -(r + plateW / 2);
+              return (
+                  <group key={`supp-${i}`} position={[coor.x, coor.y, coor.z]} rotation={upRot} onPointerDown={onSuppClick}>
+                      <group position={[0, ancOffset, 0]}>
+                          <mesh><boxGeometry args={[plateW, plateW, plateW]} /><meshStandardMaterial color={isSelected ? color : '#22c55e'} opacity={isSelected ? 0.8 : 0.6} transparent /></mesh>
+                          <mesh rotation={[0, 0, Math.PI / 4]}><boxGeometry args={[sR * 0.3, plateW * 1.6, sR * 0.3]} /><meshStandardMaterial color={isSelected ? color : '#15803d'} transparent={isTranslucent} opacity={isTranslucent ? 0.35 : 1} depthWrite={!isTranslucent} /></mesh>
+                          <mesh rotation={[0, 0, -Math.PI / 4]}><boxGeometry args={[sR * 0.3, plateW * 1.6, sR * 0.3]} /><meshStandardMaterial color={isSelected ? color : '#15803d'} transparent={isTranslucent} opacity={isTranslucent ? 0.35 : 1} depthWrite={!isTranslucent} /></mesh>
+                      </group>
+                  </group>
+              );
+          }
+
+          // REST / CA150 / Default — Upward arrow + base plate
           return (
-            <group key={`supp-${i}`} position={[coor.x, coor.y, coor.z]} onPointerDown={onSuppClick}>
-              {isGuide ? (
-                // GUIDE (CA100): two lateral arrows pointing inward from both sides, perpendicular to pipe
-                (() => {
-                  const side = new THREE.Vector3().crossVectors(pipeDir, new THREE.Vector3(0,1,0)).normalize();
-                  if (side.length() < 0.01) side.set(1,0,0);
-                  const s = side.toArray();
-                  const sn = side.clone().negate().toArray();
-                  return (<>
-                    <Arrow dir={sn} offset={[s[0]*r*2, s[1]*r*2, s[2]*r*2]} />
-                    <Arrow dir={s}  offset={[sn[0]*r*2, sn[1]*r*2, sn[2]*r*2]} />
-                  </>);
-                })()
-              ) : isAnchor ? (
-                // ANCHOR / LINE STOP: two arrows along pipe axis + one upward arrow
-                <>
-                  <Arrow dir={pipeDir.toArray()} offset={[pipeDir.x*r*1.5, pipeDir.y*r*1.5, pipeDir.z*r*1.5]} />
-                  <Arrow dir={pipeDir.clone().negate().toArray()} offset={[-pipeDir.x*r*1.5, -pipeDir.y*r*1.5, -pipeDir.z*r*1.5]} />
-                  <Arrow dir={[0, 1, 0]} scale={0.8} />
-                </>
-              ) : (
-                // REST (CA150 / default): single downward arrow (from below, pointing up into pipe)
-                <Arrow dir={[0, -1, 0]} />
-              )}
-            </group>
+              <group key={`supp-${i}`} position={[coor.x, coor.y, coor.z]} rotation={upRot} onPointerDown={onSuppClick}>
+                  <group position={[0, offsetDown, 0]}>
+                      <mesh><cylinderGeometry args={[sR * 0.3, sR * 0.3, stemH, 8]} /><meshStandardMaterial color={isSelected ? color : '#22c55e'} transparent={isTranslucent} opacity={isTranslucent ? 0.35 : 1} depthWrite={!isTranslucent} /></mesh>
+                      <mesh position={[0, stemH / 2 + sR, 0]}><coneGeometry args={[sR * 1.5, sR * 3, 8]} /><meshStandardMaterial color={isSelected ? color : '#22c55e'} transparent={isTranslucent} opacity={isTranslucent ? 0.35 : 1} depthWrite={!isTranslucent} /></mesh>
+                      <mesh position={[0, -stemH / 2 - sR * 0.2, 0]}><boxGeometry args={[plateW * 1.3, sR * 0.3, plateW * 1.3]} /><meshStandardMaterial color={isSelected ? color : '#16a34a'} transparent={isTranslucent} opacity={isTranslucent ? 0.35 : 1} depthWrite={!isTranslucent} /></mesh>
+                  </group>
+              </group>
           );
         }
 
@@ -552,8 +503,20 @@ const ImmutableComponents = () => {
           );
         }
 
-        if (type === 'BEND') {
-          // Slightly thicker cylinder in amber — no torus without 3 points; keep cylinder with distinct colour
+        if (type === 'BEND' || type === 'ELBOW') {
+          if (el.ep1 && el.ep2 && el.cp) {
+              const v1 = new THREE.Vector3(el.ep1.x, el.ep1.y, el.ep1.z);
+              const v2 = new THREE.Vector3(el.ep2.x, el.ep2.y, el.ep2.z);
+              const vc = new THREE.Vector3(el.cp.x, el.cp.y, el.cp.z);
+              const curve = new THREE.QuadraticBezierCurve3(v1, vc, v2);
+              return (
+                  <mesh key={`bn-${i}`} onPointerDown={handleSelect}>
+                      <tubeGeometry args={[curve, 20, r, 12, false]} />
+                      <meshStandardMaterial color={isSelected ? appSettings.selectionColor : color} transparent={isTranslucent} opacity={isTranslucent ? 0.3 : 1} depthWrite={!isTranslucent} />
+                  </mesh>
+              );
+          }
+          // Fallback to straight cylinder if centre point is missing
           return (
             <mesh key={`bn-${i}`} position={mid} quaternion={quat} onPointerDown={handleSelect}>
               <cylinderGeometry args={[r * 1.1, r * 1.1, dist, 16]} />
@@ -1062,73 +1025,83 @@ const LegendLayer = () => {
         return Array.from(vals).sort();
     }, [dataTable, colorMode]);
 
-    if (colorMode === 'TYPE') {
-        return (
-            <div className="flex flex-col gap-1 bg-slate-900/90 p-3 rounded border border-slate-700 backdrop-blur pointer-events-auto shadow-xl shrink-0">
-                <div className="flex items-center gap-2 border-b border-slate-700 pb-1 mb-1">
-                  <button onClick={() => setIsCollapsed(!isCollapsed)} className="text-red-500 hover:text-red-400 text-xs">
+    const [pos, setPos] = useState({ x: window.innerWidth - 300, y: 80 });
+    const isDragging = useRef(false);
+    const dragOffset = useRef({ x: 0, y: 0 });
+
+    const handlePointerDown = (e) => {
+        isDragging.current = true;
+        dragOffset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
+        e.target.setPointerCapture(e.pointerId);
+    };
+
+    const handlePointerMove = (e) => {
+        if (!isDragging.current) return;
+        setPos({ x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y });
+    };
+
+    const handlePointerUp = (e) => {
+        isDragging.current = false;
+        e.target.releasePointerCapture(e.pointerId);
+    };
+
+    const renderWrapper = (title, content) => (
+        <div style={{ position: 'fixed', left: pos.x, top: pos.y, zIndex: 60 }} className="flex flex-col gap-1 bg-slate-900/95 p-3 rounded border border-slate-700 backdrop-blur pointer-events-auto shadow-xl shrink-0 cursor-move" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
+             <div className="flex items-center gap-2 border-b border-slate-700 pb-1 mb-1">
+                  <button onPointerDown={(e)=>e.stopPropagation()} onClick={() => setIsCollapsed(!isCollapsed)} className="text-red-500 hover:text-red-400 text-xs cursor-pointer">
                     {isCollapsed ? '▶' : '▼'}
                   </button>
-                  <h4 className="text-xs font-bold text-slate-300">Type Legend</h4>
-                </div>
-                {!isCollapsed && uniqueTypes.map(val => (
+                  <h4 className="text-xs font-bold text-slate-300 pointer-events-none select-none">{title}</h4>
+             </div>
+             {!isCollapsed && <div className="pointer-events-auto max-h-64 overflow-y-auto" onPointerDown={e=>e.stopPropagation()}>{content}</div>}
+        </div>
+    );
+
+    if (colorMode === 'TYPE') {
+        return renderWrapper('Type Legend', (
+            <div className="flex flex-col gap-1">
+                {uniqueTypes.map(val => (
                     <div key={val} className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: typeColor(val, appSettings) }}></div>
-                        <span className="text-xs text-slate-400">{val}</span>
+                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: typeColor(val, appSettings) }}></div>
+                        <span className="text-xs text-slate-400 truncate">{val}</span>
                     </div>
                 ))}
             </div>
-        );
+        ));
     }
 
     if (colorMode === 'SPOOL') {
         const spools = computeSpools(dataTable);
         const uniqueSpoolIds = Array.from(new Set(Object.values(spools))).sort((a, b) => a - b);
 
-        return (
-            <div className="flex flex-col gap-1 bg-slate-900/90 p-3 rounded border border-slate-700 backdrop-blur pointer-events-auto shadow-xl shrink-0 max-h-64 overflow-y-auto">
-                <div className="flex items-center gap-2 border-b border-slate-700 pb-1 mb-1">
-                  <button onClick={() => setIsCollapsed(!isCollapsed)} className="text-red-500 hover:text-red-400 text-xs">
-                    {isCollapsed ? '▶' : '▼'}
-                  </button>
-                  <h4 className="text-xs font-bold text-slate-300">Spool Legend</h4>
-                </div>
-                {!isCollapsed && uniqueSpoolIds.map(val => (
+        return renderWrapper('Spool Legend', (
+            <div className="flex flex-col gap-1">
+                {uniqueSpoolIds.map(val => (
                     <div key={val} className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: spoolColor(val) }}></div>
-                        <span className="text-xs text-slate-400">Spool {val}</span>
+                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: spoolColor(val) }}></div>
+                        <span className="text-xs text-slate-400 truncate">Spool {val}</span>
                     </div>
                 ))}
             </div>
-        );
+        ));
     }
 
     if (uniqueValues.length === 0) return null;
 
-    return (
-        <div className="flex flex-col gap-1 bg-slate-900/90 p-3 rounded border border-slate-700 backdrop-blur pointer-events-auto shadow-xl shrink-0 max-h-64 overflow-y-auto">
-            <div className="flex items-center gap-2 border-b border-slate-700 pb-1 mb-1">
-              <button onClick={() => setIsCollapsed(!isCollapsed)} className="text-red-500 hover:text-red-400 text-xs">
-                {isCollapsed ? '▶' : '▼'}
-              </button>
-              <h4 className="text-xs font-bold text-slate-300">{colorMode} Legend</h4>
-            </div>
-            {!isCollapsed && (
-              <>
-                {uniqueValues.map(val => (
-                    <div key={val} className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getCAColor(val) }}></div>
-                        <span className="text-xs text-slate-400">{val}</span>
-                    </div>
-                ))}
-                <div className="flex items-center gap-2 mt-1">
-                    <div className="w-3 h-3 rounded-full bg-slate-600"></div>
-                    <span className="text-xs text-slate-500 italic">None / Missing</span>
+    return renderWrapper(`${colorMode} Legend`, (
+        <div className="flex flex-col gap-1">
+            {uniqueValues.map(val => (
+                <div key={val} className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: getCAColor(val) }}></div>
+                    <span className="text-xs text-slate-400 truncate">{val}</span>
                 </div>
-              </>
-            )}
+            ))}
+            <div className="flex items-center gap-2 mt-1">
+                <div className="w-3 h-3 rounded-full bg-slate-600 shrink-0"></div>
+                <span className="text-xs text-slate-500 italic truncate">None / Missing</span>
+            </div>
         </div>
-    );
+    ));
 };
 
 // ----------------------------------------------------
@@ -1186,10 +1159,6 @@ const MarqueeLayer = () => {
             new THREE.Vector3(box.max.x, box.max.y, box.max.z)
         ];
 
-        const canvasRect = document.querySelector('canvas')?.getBoundingClientRect();
-        const canvasOffsetLeft = canvasRect ? canvasRect.left : 0;
-        const canvasOffsetTop = canvasRect ? canvasRect.top : 0;
-
         let anyInside = false;
 
         for (const corner of corners) {
@@ -1198,8 +1167,8 @@ const MarqueeLayer = () => {
             // Behind camera check
             if (projected.z > 1 || projected.z < -1) continue;
 
-            const px = (projected.x * 0.5 + 0.5) * size.width + canvasOffsetLeft;
-            const py = (projected.y * -0.5 + 0.5) * size.height + canvasOffsetTop;
+            const px = (projected.x * 0.5 + 0.5) * size.width;
+            const py = (projected.y * -0.5 + 0.5) * size.height;
 
             const inside = px >= rectScreen.left && px <= rectScreen.right &&
                            py >= rectScreen.top && py <= rectScreen.bottom;
@@ -1208,6 +1177,12 @@ const MarqueeLayer = () => {
         }
 
         return anyInside;
+    };
+
+    const getPoint = (e) => {
+        if (!overlayRef.current) return { x: e.clientX, y: e.clientY };
+        const rect = overlayRef.current.getBoundingClientRect();
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
     };
 
     const handlePointerDown = (e) => {
@@ -1221,8 +1196,9 @@ const MarqueeLayer = () => {
         }
 
         setIsDragging(true);
-        setStartPos({ x: e.clientX, y: e.clientY });
-        setCurrentPos({ x: e.clientX, y: e.clientY });
+        const pt = getPoint(e);
+        setStartPos(pt);
+        setCurrentPos(pt);
     };
 
     const handlePointerMove = (e) => {
@@ -1230,7 +1206,7 @@ const MarqueeLayer = () => {
 
         e.preventDefault();
         e.stopPropagation();
-        setCurrentPos({ x: e.clientX, y: e.clientY });
+        setCurrentPos(getPoint(e));
     };
 
     const handlePointerUp = (e) => {
@@ -2287,13 +2263,15 @@ const ControlsAutoCenter = ({ externalRef }) => {
 
         const tPos = bounds.center.clone();
         const dist = Math.max(bounds.maxDim * 1.6, 1000);
-        const up = new THREE.Vector3(0, 0, 1);
+        
+        const upAxis = useStore.getState().appSettings.upAxis || 'Z';
+        const up = upAxis === 'Z' ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
         let cPos = new THREE.Vector3(tPos.x + dist, tPos.y - dist, tPos.z + dist);
 
         switch (viewType) {
             case 'TOP':
-                cPos = new THREE.Vector3(tPos.x, tPos.y, tPos.z + dist);
-                up.set(0, 1, 0);
+                cPos = upAxis === 'Z' ? new THREE.Vector3(tPos.x, tPos.y, tPos.z + dist) : new THREE.Vector3(tPos.x, tPos.y + dist, tPos.z);
+                up.set(0, upAxis === 'Z' ? 1 : 0, upAxis === 'Z' ? 0 : -1);
                 break;
             case 'BOTTOM':
                 cPos = new THREE.Vector3(tPos.x, tPos.y, tPos.z - dist);
@@ -2444,7 +2422,8 @@ const ControlsAutoCenter = ({ externalRef }) => {
             if (saved.camUp && isFiniteVectorLike(saved.camUp)) {
                 controlsRef.current.object.up.copy(saved.camUp);
             } else {
-                controlsRef.current.object.up.set(0, 0, 1);
+                const upAxis = useStore.getState().appSettings.upAxis || 'Z';
+                controlsRef.current.object.up.set(0, upAxis === 'Y' ? 1 : 0, upAxis === 'Z' ? 1 : 0);
             }
             controlsRef.current.update();
 
@@ -2505,6 +2484,7 @@ const ControlsAutoCenter = ({ externalRef }) => {
                 enableDamping
                 dampingFactor={0.1}
                 mouseButtons={currentMouseButtons}
+                onStart={() => { isAnimating.current = false; }}
             />;
 };
 
@@ -2969,7 +2949,16 @@ export function CanvasTab() {
       />
 
 
-      <Canvas>
+      <Canvas onPointerMissed={(e) => {
+          if (e.nativeEvent?.__handled3D) return;
+          if (e.nativeEvent) {
+              const target = e.nativeEvent.target;
+              if (target && target.tagName !== 'CANVAS') return;
+          }
+          if (e && (e.ctrlKey || e.metaKey)) return;
+          useStore.getState().setSelected(null);
+          useStore.getState().clearMultiSelect();
+      }}>
         {orthoMode ? (
             <OrthographicCamera key="ortho" makeDefault position={[gridCenter.x + 2000, gridCenter.y - 2000, (gridCenter.z ?? 0) + 2000]} up={[0, 0, 1]} zoom={0.2} near={0.1} far={500000} />
         ) : (

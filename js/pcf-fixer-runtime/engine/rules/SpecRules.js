@@ -1,8 +1,8 @@
 // @ts-check
-/** @typedef {import('/js/pcf-fixer-runtime/engine/types.js').PcfComponent} PcfComponent */
-/** @typedef {import('/js/pcf-fixer-runtime/engine/types.js').WalkContext} WalkContext */
-/** @typedef {import('/js/pcf-fixer-runtime/engine/types.js').Config} Config */
-/** @typedef {import('/js/pcf-fixer-runtime/engine/types.js').Logger} Logger */
+/** @typedef {import('../types.js').PcfComponent} PcfComponent */
+/** @typedef {import('../types.js').WalkContext} WalkContext */
+/** @typedef {import('../types.js').Config} Config */
+/** @typedef {import('../types.js').Logger} Logger */
 
 /**
  * SpecRules.js

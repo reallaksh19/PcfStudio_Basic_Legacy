@@ -1,5 +1,5 @@
 import React, { createContext, useReducer, useContext } from 'react';
-import { jsx as _jsx } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { jsx as _jsx } from "../jsx-runtime.js";
 const initialState = {
   dataTable: [],
   // Will now serve as stage 1 data table source of truth to avoid breaking legacy code where possible
@@ -183,7 +183,7 @@ function reducer(state, action) {
         }));
 
         // Attempt to clear useStore selection state to avoid zombie references
-        import('/js/pcf-fixer-runtime/store/useStore.js').then(({
+        import('./useStore.js').then(({
           useStore
         }) => {
           const store = useStore.getState();

@@ -1,4 +1,4 @@
-import { vec } from '/js/pcf-fixer-runtime/math/VectorMath.js';
+import { vec } from '../math/VectorMath.js';
 
 export function runValidationChecklist(dataTable, config, logger, stage = "1") {
   logger.push({ stage: "VALIDATION", type: "Info", message: "═══ RUNNING V1-V20 VALIDATION CHECKLIST ═══" });

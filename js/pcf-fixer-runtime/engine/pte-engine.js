@@ -1,6 +1,6 @@
-import { vec } from '/js/pcf-fixer-runtime/math/VectorMath.js';
-import { getEntryPoint, getExitPoint } from '/js/pcf-fixer-runtime/engine/GraphBuilder.js';
-import { getElementVector } from '/js/pcf-fixer-runtime/engine/AxisDetector.js';
+import { vec } from '../math/VectorMath.js';
+import { getEntryPoint, getExitPoint } from './GraphBuilder.js';
+import { getElementVector } from './AxisDetector.js';
 
 export function runPTEEngine(dataTable, config, logger) {
     const pteMode = config.pteMode || { autoMultiPassMode: true, sequentialMode: true, lineKeyMode: true, lineKeyColumn: 'pipelineRef' };

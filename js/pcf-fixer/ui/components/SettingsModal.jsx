@@ -74,6 +74,21 @@ export const SettingsModal = () => {
 
                     <div className="flex justify-between items-center">
                         <div>
+                            <div className="text-sm font-medium text-slate-200">Up Axis (Elevation)</div>
+                            <div className="text-xs text-slate-400">Which axis points up (Z is standard PCF)</div>
+                        </div>
+                        <select
+                            value={appSettings.upAxis || 'Z'}
+                            onChange={(e) => updateAppSettings({ upAxis: e.target.value })}
+                            className="bg-slate-950 text-slate-200 text-sm p-2 w-24 rounded border border-slate-700 focus:border-blue-500 outline-none transition-colors"
+                        >
+                            <option value="Z">Z Axis</option>
+                            <option value="Y">Y Axis</option>
+                        </select>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                        <div>
                             <div className="text-sm font-medium text-slate-200">Camera Near Plane</div>
                         </div>
                         <input

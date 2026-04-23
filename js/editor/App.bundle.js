@@ -62,17 +62,17 @@ var require_react_development = __commonJS({
           publicInstance
         ), didWarnStateUpdateForUnmountedComponent[warningKey] = true);
       }
-      function Component3(props, context3, updater) {
+      function Component3(props, context2, updater) {
         this.props = props;
-        this.context = context3;
+        this.context = context2;
         this.refs = emptyObject;
         this.updater = updater || ReactNoopUpdateQueue;
       }
       function ComponentDummy() {
       }
-      function PureComponent(props, context3, updater) {
+      function PureComponent(props, context2, updater) {
         this.props = props;
-        this.context = context3;
+        this.context = context2;
         this.refs = emptyObject;
         this.updater = updater || ReactNoopUpdateQueue;
       }
@@ -364,11 +364,11 @@ var require_react_development = __commonJS({
         }
         return invokeCallback;
       }
-      function mapChildren(children, func, context3) {
+      function mapChildren(children, func, context2) {
         if (null == children) return children;
         var result = [], count = 0;
         mapIntoArray(children, result, "", "", function(child) {
-          return func.call(context3, child, count++);
+          return func.call(context2, child, count++);
         });
         return result;
       }
@@ -997,7 +997,7 @@ var require_react_development = __commonJS({
       exports.useTransition = function() {
         return resolveDispatcher().useTransition();
       };
-      exports.version = "19.2.4";
+      exports.version = "19.2.5";
       "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
     })();
   }
@@ -1335,7 +1335,7 @@ var require_react_dom_development = __commonJS({
         return dispatcher;
       }
       "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-      var React20 = require_react(), Internals = {
+      var React19 = require_react(), Internals = {
         d: {
           f: noop,
           r: function() {
@@ -1353,7 +1353,7 @@ var require_react_dom_development = __commonJS({
         },
         p: 0,
         findDOMNode: null
-      }, REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal"), ReactSharedInternals = React20.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+      }, REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal"), ReactSharedInternals = React19.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
       "function" === typeof Map && null != Map.prototype && "function" === typeof Map.prototype.forEach && "function" === typeof Set && null != Set.prototype && "function" === typeof Set.prototype.clear && "function" === typeof Set.prototype.forEach || console.error(
         "React depends on Map and Set built-in types. Make sure that you load a polyfill in older browsers. https://reactjs.org/link/react-polyfills"
       );
@@ -1524,7 +1524,7 @@ var require_react_dom_development = __commonJS({
       exports.useFormStatus = function() {
         return resolveDispatcher().useHostTransitionStatus();
       };
-      exports.version = "19.2.4";
+      exports.version = "19.2.5";
       "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
     })();
   }
@@ -1942,12 +1942,12 @@ var require_react_dom_client_development = __commonJS({
       }
       function pushHostContext(fiber) {
         null !== fiber.memoizedState && push(hostTransitionProviderCursor, fiber, fiber);
-        var context3 = requiredContext(contextStackCursor.current);
+        var context2 = requiredContext(contextStackCursor.current);
         var type = fiber.type;
-        var nextContext = getChildHostContextProd(context3.context, type);
-        type = updatedAncestorInfoDev(context3.ancestorInfo, type);
+        var nextContext = getChildHostContextProd(context2.context, type);
+        type = updatedAncestorInfoDev(context2.ancestorInfo, type);
         nextContext = { context: nextContext, ancestorInfo: type };
-        context3 !== nextContext && (push(contextFiberStackCursor, fiber, fiber), push(contextStackCursor, nextContext, fiber));
+        context2 !== nextContext && (push(contextFiberStackCursor, fiber, fiber), push(contextStackCursor, nextContext, fiber));
       }
       function popHostContext(fiber) {
         contextFiberStackCursor.current === fiber && (pop(contextStackCursor, fiber), pop(contextFiberStackCursor, fiber));
@@ -2888,7 +2888,7 @@ var require_react_dom_client_development = __commonJS({
         "number" === type && getActiveElement(node.ownerDocument) === node || node.defaultValue === "" + value || (node.defaultValue = "" + value);
       }
       function validateOptionProps(element, props) {
-        null == props.value && ("object" === typeof props.children && null !== props.children ? React20.Children.forEach(props.children, function(child) {
+        null == props.value && ("object" === typeof props.children && null !== props.children ? React19.Children.forEach(props.children, function(child) {
           null == child || "string" === typeof child || "number" === typeof child || "bigint" === typeof child || didWarnInvalidChild || (didWarnInvalidChild = true, console.error(
             "Cannot infer the option value of complex children. Pass a `value` prop or use a plain string as children to <option>."
           ));
@@ -5346,20 +5346,20 @@ var require_react_dom_client_development = __commonJS({
         lastContextDependency = currentlyRenderingFiber$1 = null;
         isDisallowedContextReadInDEV = false;
       }
-      function pushProvider(providerFiber, context3, nextValue) {
-        push(valueCursor, context3._currentValue, providerFiber);
-        context3._currentValue = nextValue;
-        push(rendererCursorDEV, context3._currentRenderer, providerFiber);
-        void 0 !== context3._currentRenderer && null !== context3._currentRenderer && context3._currentRenderer !== rendererSigil && console.error(
+      function pushProvider(providerFiber, context2, nextValue) {
+        push(valueCursor, context2._currentValue, providerFiber);
+        context2._currentValue = nextValue;
+        push(rendererCursorDEV, context2._currentRenderer, providerFiber);
+        void 0 !== context2._currentRenderer && null !== context2._currentRenderer && context2._currentRenderer !== rendererSigil && console.error(
           "Detected multiple renderers concurrently rendering the same context provider. This is currently unsupported."
         );
-        context3._currentRenderer = rendererSigil;
+        context2._currentRenderer = rendererSigil;
       }
-      function popProvider(context3, providerFiber) {
-        context3._currentValue = valueCursor.current;
+      function popProvider(context2, providerFiber) {
+        context2._currentValue = valueCursor.current;
         var currentRenderer = rendererCursorDEV.current;
         pop(rendererCursorDEV, providerFiber);
-        context3._currentRenderer = currentRenderer;
+        context2._currentRenderer = currentRenderer;
         pop(valueCursor, providerFiber);
       }
       function scheduleContextWorkOnParentPath(parent, renderLanes2, propagationRoot) {
@@ -5446,8 +5446,8 @@ var require_react_dom_client_development = __commonJS({
               throw Error("Should have a current fiber. This is a bug in React.");
             currentParent = currentParent.memoizedProps;
             if (null !== currentParent) {
-              var context3 = parent.type;
-              objectIs(parent.pendingProps.value, currentParent.value) || (null !== current2 ? current2.push(context3) : current2 = [context3]);
+              var context2 = parent.type;
+              objectIs(parent.pendingProps.value, currentParent.value) || (null !== current2 ? current2.push(context2) : current2 = [context2]);
             }
           } else if (parent === hostTransitionProviderCursor.current) {
             currentParent = parent.alternate;
@@ -5482,32 +5482,32 @@ var require_react_dom_client_development = __commonJS({
         workInProgress2 = workInProgress2.dependencies;
         null !== workInProgress2 && (workInProgress2.firstContext = null);
       }
-      function readContext(context3) {
+      function readContext(context2) {
         isDisallowedContextReadInDEV && console.error(
           "Context can only be read while React is rendering. In classes, you can read it in the render method or getDerivedStateFromProps. In function components, you can read it directly in the function body, but not inside Hooks like useReducer() or useMemo()."
         );
-        return readContextForConsumer(currentlyRenderingFiber$1, context3);
+        return readContextForConsumer(currentlyRenderingFiber$1, context2);
       }
-      function readContextDuringReconciliation(consumer, context3) {
+      function readContextDuringReconciliation(consumer, context2) {
         null === currentlyRenderingFiber$1 && prepareToReadContext(consumer);
-        return readContextForConsumer(consumer, context3);
+        return readContextForConsumer(consumer, context2);
       }
-      function readContextForConsumer(consumer, context3) {
-        var value = context3._currentValue;
-        context3 = { context: context3, memoizedValue: value, next: null };
+      function readContextForConsumer(consumer, context2) {
+        var value = context2._currentValue;
+        context2 = { context: context2, memoizedValue: value, next: null };
         if (null === lastContextDependency) {
           if (null === consumer)
             throw Error(
               "Context can only be read while React is rendering. In classes, you can read it in the render method or getDerivedStateFromProps. In function components, you can read it directly in the function body, but not inside Hooks like useReducer() or useMemo()."
             );
-          lastContextDependency = context3;
+          lastContextDependency = context2;
           consumer.dependencies = {
             lanes: 0,
-            firstContext: context3,
+            firstContext: context2,
             _debugThenableState: null
           };
           consumer.flags |= 524288;
-        } else lastContextDependency = lastContextDependency.next = context3;
+        } else lastContextDependency = lastContextDependency.next = context2;
         return value;
       }
       function createCache() {
@@ -6747,30 +6747,30 @@ var require_react_dom_client_development = __commonJS({
         }
         currentlyProcessingQueue = null;
       }
-      function callCallback(callback, context3) {
+      function callCallback(callback, context2) {
         if ("function" !== typeof callback)
           throw Error(
             "Invalid argument passed as callback. Expected a function. Instead received: " + callback
           );
-        callback.call(context3);
+        callback.call(context2);
       }
-      function commitHiddenCallbacks(updateQueue, context3) {
+      function commitHiddenCallbacks(updateQueue, context2) {
         var hiddenCallbacks = updateQueue.shared.hiddenCallbacks;
         if (null !== hiddenCallbacks)
           for (updateQueue.shared.hiddenCallbacks = null, updateQueue = 0; updateQueue < hiddenCallbacks.length; updateQueue++)
-            callCallback(hiddenCallbacks[updateQueue], context3);
+            callCallback(hiddenCallbacks[updateQueue], context2);
       }
-      function commitCallbacks(updateQueue, context3) {
+      function commitCallbacks(updateQueue, context2) {
         var callbacks = updateQueue.callbacks;
         if (null !== callbacks)
           for (updateQueue.callbacks = null, updateQueue = 0; updateQueue < callbacks.length; updateQueue++)
-            callCallback(callbacks[updateQueue], context3);
+            callCallback(callbacks[updateQueue], context2);
       }
-      function pushHiddenContext(fiber, context3) {
+      function pushHiddenContext(fiber, context2) {
         var prevEntangledRenderLanes = entangledRenderLanes;
         push(prevEntangledRenderLanesCursor, prevEntangledRenderLanes, fiber);
-        push(currentTreeHiddenStackCursor, context3, fiber);
-        entangledRenderLanes = prevEntangledRenderLanes | context3.baseLanes;
+        push(currentTreeHiddenStackCursor, context2, fiber);
+        entangledRenderLanes = prevEntangledRenderLanes | context2.baseLanes;
       }
       function reuseHiddenContextOnStack(fiber) {
         push(prevEntangledRenderLanesCursor, entangledRenderLanes, fiber);
@@ -18520,14 +18520,14 @@ var require_react_dom_client_development = __commonJS({
         ));
       }
       "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-      var Scheduler = require_scheduler(), React20 = require_react(), ReactDOM = require_react_dom(), assign3 = Object.assign, REACT_LEGACY_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.element"), REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = /* @__PURE__ */ Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo"), REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy");
+      var Scheduler = require_scheduler(), React19 = require_react(), ReactDOM = require_react_dom(), assign3 = Object.assign, REACT_LEGACY_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.element"), REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = /* @__PURE__ */ Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo"), REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy");
       /* @__PURE__ */ Symbol.for("react.scope");
       var REACT_ACTIVITY_TYPE = /* @__PURE__ */ Symbol.for("react.activity");
       /* @__PURE__ */ Symbol.for("react.legacy_hidden");
       /* @__PURE__ */ Symbol.for("react.tracing_marker");
       var REACT_MEMO_CACHE_SENTINEL = /* @__PURE__ */ Symbol.for("react.memo_cache_sentinel");
       /* @__PURE__ */ Symbol.for("react.view_transition");
-      var MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE = /* @__PURE__ */ Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, ReactSharedInternals = React20.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, ReactDOMSharedInternals = ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, NotPending = Object.freeze({
+      var MAYBE_ITERATOR_SYMBOL = Symbol.iterator, REACT_CLIENT_REFERENCE = /* @__PURE__ */ Symbol.for("react.client.reference"), isArrayImpl = Array.isArray, ReactSharedInternals = React19.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, ReactDOMSharedInternals = ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, NotPending = Object.freeze({
         pending: false,
         data: null,
         method: null,
@@ -19924,8 +19924,8 @@ var require_react_dom_client_development = __commonJS({
       ContextOnlyDispatcher.useEffectEvent = throwInvalidHookError;
       var HooksDispatcherOnMountInDEV = null, HooksDispatcherOnMountWithHookTypesInDEV = null, HooksDispatcherOnUpdateInDEV = null, HooksDispatcherOnRerenderInDEV = null, InvalidNestedHooksDispatcherOnMountInDEV = null, InvalidNestedHooksDispatcherOnUpdateInDEV = null, InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       HooksDispatcherOnMountInDEV = {
-        readContext: function(context3) {
-          return readContext(context3);
+        readContext: function(context2) {
+          return readContext(context2);
         },
         use: use2,
         useCallback: function(callback, deps) {
@@ -19934,10 +19934,10 @@ var require_react_dom_client_development = __commonJS({
           checkDepsAreArrayDev(deps);
           return mountCallback(callback, deps);
         },
-        useContext: function(context3) {
+        useContext: function(context2) {
           currentHookNameInDev = "useContext";
           mountHookTypesDev();
-          return readContext(context3);
+          return readContext(context2);
         },
         useEffect: function(create2, deps) {
           currentHookNameInDev = "useEffect";
@@ -20060,8 +20060,8 @@ var require_react_dom_client_development = __commonJS({
         }
       };
       HooksDispatcherOnMountWithHookTypesInDEV = {
-        readContext: function(context3) {
-          return readContext(context3);
+        readContext: function(context2) {
+          return readContext(context2);
         },
         use: use2,
         useCallback: function(callback, deps) {
@@ -20069,10 +20069,10 @@ var require_react_dom_client_development = __commonJS({
           updateHookTypesDev();
           return mountCallback(callback, deps);
         },
-        useContext: function(context3) {
+        useContext: function(context2) {
           currentHookNameInDev = "useContext";
           updateHookTypesDev();
-          return readContext(context3);
+          return readContext(context2);
         },
         useEffect: function(create2, deps) {
           currentHookNameInDev = "useEffect";
@@ -20190,8 +20190,8 @@ var require_react_dom_client_development = __commonJS({
         }
       };
       HooksDispatcherOnUpdateInDEV = {
-        readContext: function(context3) {
-          return readContext(context3);
+        readContext: function(context2) {
+          return readContext(context2);
         },
         use: use2,
         useCallback: function(callback, deps) {
@@ -20199,10 +20199,10 @@ var require_react_dom_client_development = __commonJS({
           updateHookTypesDev();
           return updateCallback2(callback, deps);
         },
-        useContext: function(context3) {
+        useContext: function(context2) {
           currentHookNameInDev = "useContext";
           updateHookTypesDev();
-          return readContext(context3);
+          return readContext(context2);
         },
         useEffect: function(create2, deps) {
           currentHookNameInDev = "useEffect";
@@ -20320,8 +20320,8 @@ var require_react_dom_client_development = __commonJS({
         }
       };
       HooksDispatcherOnRerenderInDEV = {
-        readContext: function(context3) {
-          return readContext(context3);
+        readContext: function(context2) {
+          return readContext(context2);
         },
         use: use2,
         useCallback: function(callback, deps) {
@@ -20329,10 +20329,10 @@ var require_react_dom_client_development = __commonJS({
           updateHookTypesDev();
           return updateCallback2(callback, deps);
         },
-        useContext: function(context3) {
+        useContext: function(context2) {
           currentHookNameInDev = "useContext";
           updateHookTypesDev();
-          return readContext(context3);
+          return readContext(context2);
         },
         useEffect: function(create2, deps) {
           currentHookNameInDev = "useEffect";
@@ -20450,9 +20450,9 @@ var require_react_dom_client_development = __commonJS({
         }
       };
       InvalidNestedHooksDispatcherOnMountInDEV = {
-        readContext: function(context3) {
+        readContext: function(context2) {
           warnInvalidContextAccess();
-          return readContext(context3);
+          return readContext(context2);
         },
         use: function(usable) {
           warnInvalidHookAccess();
@@ -20464,11 +20464,11 @@ var require_react_dom_client_development = __commonJS({
           mountHookTypesDev();
           return mountCallback(callback, deps);
         },
-        useContext: function(context3) {
+        useContext: function(context2) {
           currentHookNameInDev = "useContext";
           warnInvalidHookAccess();
           mountHookTypesDev();
-          return readContext(context3);
+          return readContext(context2);
         },
         useEffect: function(create2, deps) {
           currentHookNameInDev = "useEffect";
@@ -20605,9 +20605,9 @@ var require_react_dom_client_development = __commonJS({
         }
       };
       InvalidNestedHooksDispatcherOnUpdateInDEV = {
-        readContext: function(context3) {
+        readContext: function(context2) {
           warnInvalidContextAccess();
-          return readContext(context3);
+          return readContext(context2);
         },
         use: function(usable) {
           warnInvalidHookAccess();
@@ -20619,11 +20619,11 @@ var require_react_dom_client_development = __commonJS({
           updateHookTypesDev();
           return updateCallback2(callback, deps);
         },
-        useContext: function(context3) {
+        useContext: function(context2) {
           currentHookNameInDev = "useContext";
           warnInvalidHookAccess();
           updateHookTypesDev();
-          return readContext(context3);
+          return readContext(context2);
         },
         useEffect: function(create2, deps) {
           currentHookNameInDev = "useEffect";
@@ -20760,9 +20760,9 @@ var require_react_dom_client_development = __commonJS({
         }
       };
       InvalidNestedHooksDispatcherOnRerenderInDEV = {
-        readContext: function(context3) {
+        readContext: function(context2) {
           warnInvalidContextAccess();
-          return readContext(context3);
+          return readContext(context2);
         },
         use: function(usable) {
           warnInvalidHookAccess();
@@ -20774,11 +20774,11 @@ var require_react_dom_client_development = __commonJS({
           updateHookTypesDev();
           return updateCallback2(callback, deps);
         },
-        useContext: function(context3) {
+        useContext: function(context2) {
           currentHookNameInDev = "useContext";
           warnInvalidHookAccess();
           updateHookTypesDev();
-          return readContext(context3);
+          return readContext(context2);
         },
         useEffect: function(create2, deps) {
           currentHookNameInDev = "useEffect";
@@ -21315,10 +21315,10 @@ var require_react_dom_client_development = __commonJS({
         }
       };
       (function() {
-        var isomorphicReactPackageVersion = React20.version;
-        if ("19.2.4" !== isomorphicReactPackageVersion)
+        var isomorphicReactPackageVersion = React19.version;
+        if ("19.2.5" !== isomorphicReactPackageVersion)
           throw Error(
-            'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' + (isomorphicReactPackageVersion + "\n  - react-dom:  19.2.4\nLearn more: https://react.dev/warnings/version-mismatch")
+            'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' + (isomorphicReactPackageVersion + "\n  - react-dom:  19.2.5\nLearn more: https://react.dev/warnings/version-mismatch")
           );
       })();
       "function" === typeof Map && null != Map.prototype && "function" === typeof Map.prototype.forEach && "function" === typeof Set && null != Set.prototype && "function" === typeof Set.prototype.clear && "function" === typeof Set.prototype.forEach || console.error(
@@ -21342,10 +21342,10 @@ var require_react_dom_client_development = __commonJS({
       if (!(function() {
         var internals = {
           bundleType: 1,
-          version: "19.2.4",
+          version: "19.2.5",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.2.4"
+          reconcilerVersion: "19.2.5"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -21436,7 +21436,7 @@ var require_react_dom_client_development = __commonJS({
         listenToAllSupportedEvents(container);
         return new ReactDOMHydrationRoot(initialChildren);
       };
-      exports.version = "19.2.4";
+      exports.version = "19.2.5";
       "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
     })();
   }
@@ -26258,11 +26258,11 @@ var init_three_core = __esm({
           if (_canvas === void 0) _canvas = createElementNS("canvas");
           _canvas.width = image.width;
           _canvas.height = image.height;
-          const context3 = _canvas.getContext("2d");
+          const context2 = _canvas.getContext("2d");
           if (image instanceof ImageData) {
-            context3.putImageData(image, 0, 0);
+            context2.putImageData(image, 0, 0);
           } else {
-            context3.drawImage(image, 0, 0, image.width, image.height);
+            context2.drawImage(image, 0, 0, image.width, image.height);
           }
           canvas = _canvas;
         }
@@ -26279,14 +26279,14 @@ var init_three_core = __esm({
           const canvas = createElementNS("canvas");
           canvas.width = image.width;
           canvas.height = image.height;
-          const context3 = canvas.getContext("2d");
-          context3.drawImage(image, 0, 0, image.width, image.height);
-          const imageData = context3.getImageData(0, 0, image.width, image.height);
+          const context2 = canvas.getContext("2d");
+          context2.drawImage(image, 0, 0, image.width, image.height);
+          const imageData = context2.getImageData(0, 0, image.width, image.height);
           const data = imageData.data;
           for (let i3 = 0; i3 < data.length; i3++) {
             data[i3] = SRGBToLinear(data[i3] / 255) * 255;
           }
-          context3.putImageData(imageData, 0, 0);
+          context2.putImageData(imageData, 0, 0);
           return canvas;
         } else if (image.data) {
           const data = image.data.slice(0);
@@ -47840,8 +47840,8 @@ var init_three_core = __esm({
         loader.load(url, function(buffer) {
           try {
             const bufferCopy = buffer.slice(0);
-            const context3 = AudioContext.getContext();
-            context3.decodeAudioData(bufferCopy, function(audioBuffer) {
+            const context2 = AudioContext.getContext();
+            context2.decodeAudioData(bufferCopy, function(audioBuffer) {
               onLoad(audioBuffer);
             }).catch(handleError);
           } catch (e2) {
@@ -53317,30 +53317,30 @@ __export(three_module_exports, {
   warnOnce: () => warnOnce
 });
 function WebGLAnimation() {
-  let context3 = null;
+  let context2 = null;
   let isAnimating = false;
   let animationLoop = null;
   let requestId = null;
   function onAnimationFrame(time, frame2) {
     animationLoop(time, frame2);
-    requestId = context3.requestAnimationFrame(onAnimationFrame);
+    requestId = context2.requestAnimationFrame(onAnimationFrame);
   }
   return {
     start: function() {
       if (isAnimating === true) return;
       if (animationLoop === null) return;
-      requestId = context3.requestAnimationFrame(onAnimationFrame);
+      requestId = context2.requestAnimationFrame(onAnimationFrame);
       isAnimating = true;
     },
     stop: function() {
-      context3.cancelAnimationFrame(requestId);
+      context2.cancelAnimationFrame(requestId);
       isAnimating = false;
     },
     setAnimationLoop: function(callback) {
       animationLoop = callback;
     },
     setContext: function(value) {
-      context3 = value;
+      context2 = value;
     }
   };
 }
@@ -58540,8 +58540,8 @@ function WebGLTextures(_gl, extensions, state2, properties, capabilities, utils,
         const canvas = needsNewCanvas ? createCanvas(width, height) : _canvas2;
         canvas.width = width;
         canvas.height = height;
-        const context3 = canvas.getContext("2d");
-        context3.drawImage(image, 0, 0, width, height);
+        const context2 = canvas.getContext("2d");
+        context2.drawImage(image, 0, 0, width, height);
         warn("WebGLRenderer: Texture has been resized from (" + dimensions.width + "x" + dimensions.height + ") to (" + width + "x" + height + ").");
         return canvas;
       } else {
@@ -62890,7 +62890,7 @@ void main() {
       constructor(parameters = {}) {
         const {
           canvas = createCanvasElement(),
-          context: context3 = null,
+          context: context2 = null,
           depth = true,
           stencil = false,
           alpha = false,
@@ -62904,11 +62904,11 @@ void main() {
         } = parameters;
         this.isWebGLRenderer = true;
         let _alpha;
-        if (context3 !== null) {
-          if (typeof WebGLRenderingContext !== "undefined" && context3 instanceof WebGLRenderingContext) {
+        if (context2 !== null) {
+          if (typeof WebGLRenderingContext !== "undefined" && context2 instanceof WebGLRenderingContext) {
             throw new Error("THREE.WebGLRenderer: WebGL 1 is not supported since r163.");
           }
-          _alpha = context3.getContextAttributes().alpha;
+          _alpha = context2.getContextAttributes().alpha;
         } else {
           _alpha = alpha;
         }
@@ -62988,7 +62988,7 @@ void main() {
         function getTargetPixelRatio() {
           return _currentRenderTarget === null ? _pixelRatio : 1;
         }
-        let _gl = context3;
+        let _gl = context2;
         function getContext(contextName, contextAttributes) {
           return canvas.getContext(contextName, contextAttributes);
         }
@@ -64474,7 +64474,7 @@ var require_use_sync_external_store_shim_development = __commonJS({
         return x2 === y && (0 !== x2 || 1 / x2 === 1 / y) || x2 !== x2 && y !== y;
       }
       function useSyncExternalStore$2(subscribe, getSnapshot) {
-        didWarnOld18Alpha || void 0 === React20.startTransition || (didWarnOld18Alpha = true, console.error(
+        didWarnOld18Alpha || void 0 === React19.startTransition || (didWarnOld18Alpha = true, console.error(
           "You are using an outdated, pre-release alpha of React 18 that does not support useSyncExternalStore. The use-sync-external-store shim will not work correctly. Upgrade to a newer pre-release."
         ));
         var value = getSnapshot();
@@ -64484,11 +64484,11 @@ var require_use_sync_external_store_shim_development = __commonJS({
             "The result of getSnapshot should be cached to avoid an infinite loop"
           ), didWarnUncachedGetSnapshot = true);
         }
-        cachedValue = useState14({
+        cachedValue = useState13({
           inst: { value, getSnapshot }
         });
         var inst = cachedValue[0].inst, forceUpdate = cachedValue[1];
-        useLayoutEffect7(
+        useLayoutEffect6(
           function() {
             inst.value = value;
             inst.getSnapshot = getSnapshot;
@@ -64522,8 +64522,8 @@ var require_use_sync_external_store_shim_development = __commonJS({
         return getSnapshot();
       }
       "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-      var React20 = require_react(), objectIs = "function" === typeof Object.is ? Object.is : is2, useState14 = React20.useState, useEffect11 = React20.useEffect, useLayoutEffect7 = React20.useLayoutEffect, useDebugValue = React20.useDebugValue, didWarnOld18Alpha = false, didWarnUncachedGetSnapshot = false, shim = "undefined" === typeof window || "undefined" === typeof window.document || "undefined" === typeof window.document.createElement ? useSyncExternalStore$1 : useSyncExternalStore$2;
-      exports.useSyncExternalStore = void 0 !== React20.useSyncExternalStore ? React20.useSyncExternalStore : shim;
+      var React19 = require_react(), objectIs = "function" === typeof Object.is ? Object.is : is2, useState13 = React19.useState, useEffect11 = React19.useEffect, useLayoutEffect6 = React19.useLayoutEffect, useDebugValue = React19.useDebugValue, didWarnOld18Alpha = false, didWarnUncachedGetSnapshot = false, shim = "undefined" === typeof window || "undefined" === typeof window.document || "undefined" === typeof window.document.createElement ? useSyncExternalStore$1 : useSyncExternalStore$2;
+      exports.useSyncExternalStore = void 0 !== React19.useSyncExternalStore ? React19.useSyncExternalStore : shim;
       "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
     })();
   }
@@ -64550,14 +64550,14 @@ var require_with_selector_development = __commonJS({
         return x2 === y && (0 !== x2 || 1 / x2 === 1 / y) || x2 !== x2 && y !== y;
       }
       "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-      var React20 = require_react(), shim = require_shim(), objectIs = "function" === typeof Object.is ? Object.is : is2, useSyncExternalStore = shim.useSyncExternalStore, useRef9 = React20.useRef, useEffect11 = React20.useEffect, useMemo13 = React20.useMemo, useDebugValue = React20.useDebugValue;
+      var React19 = require_react(), shim = require_shim(), objectIs = "function" === typeof Object.is ? Object.is : is2, useSyncExternalStore = shim.useSyncExternalStore, useRef9 = React19.useRef, useEffect11 = React19.useEffect, useMemo12 = React19.useMemo, useDebugValue = React19.useDebugValue;
       exports.useSyncExternalStoreWithSelector = function(subscribe, getSnapshot, getServerSnapshot, selector, isEqual) {
         var instRef = useRef9(null);
         if (null === instRef.current) {
           var inst = { hasValue: false, value: null };
           instRef.current = inst;
         } else inst = instRef.current;
-        instRef = useMemo13(
+        instRef = useMemo12(
           function() {
             function memoizedSelector(nextSnapshot) {
               if (!hasMemo) {
@@ -64834,18 +64834,18 @@ var require_react_jsx_runtime_development = __commonJS({
       function isValidElement(object) {
         return "object" === typeof object && null !== object && object.$$typeof === REACT_ELEMENT_TYPE;
       }
-      var React20 = require_react(), REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = /* @__PURE__ */ Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo"), REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy"), REACT_ACTIVITY_TYPE = /* @__PURE__ */ Symbol.for("react.activity"), REACT_CLIENT_REFERENCE = /* @__PURE__ */ Symbol.for("react.client.reference"), ReactSharedInternals = React20.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, hasOwnProperty = Object.prototype.hasOwnProperty, isArrayImpl = Array.isArray, createTask = console.createTask ? console.createTask : function() {
+      var React19 = require_react(), REACT_ELEMENT_TYPE = /* @__PURE__ */ Symbol.for("react.transitional.element"), REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal"), REACT_FRAGMENT_TYPE = /* @__PURE__ */ Symbol.for("react.fragment"), REACT_STRICT_MODE_TYPE = /* @__PURE__ */ Symbol.for("react.strict_mode"), REACT_PROFILER_TYPE = /* @__PURE__ */ Symbol.for("react.profiler"), REACT_CONSUMER_TYPE = /* @__PURE__ */ Symbol.for("react.consumer"), REACT_CONTEXT_TYPE = /* @__PURE__ */ Symbol.for("react.context"), REACT_FORWARD_REF_TYPE = /* @__PURE__ */ Symbol.for("react.forward_ref"), REACT_SUSPENSE_TYPE = /* @__PURE__ */ Symbol.for("react.suspense"), REACT_SUSPENSE_LIST_TYPE = /* @__PURE__ */ Symbol.for("react.suspense_list"), REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo"), REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy"), REACT_ACTIVITY_TYPE = /* @__PURE__ */ Symbol.for("react.activity"), REACT_CLIENT_REFERENCE = /* @__PURE__ */ Symbol.for("react.client.reference"), ReactSharedInternals = React19.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE, hasOwnProperty = Object.prototype.hasOwnProperty, isArrayImpl = Array.isArray, createTask = console.createTask ? console.createTask : function() {
         return null;
       };
-      React20 = {
+      React19 = {
         react_stack_bottom_frame: function(callStackForError) {
           return callStackForError();
         }
       };
       var specialPropKeyWarningShown;
       var didWarnAboutElementRef = {};
-      var unknownOwnerDebugStack = React20.react_stack_bottom_frame.bind(
-        React20,
+      var unknownOwnerDebugStack = React19.react_stack_bottom_frame.bind(
+        React19,
         UnknownOwner
       )();
       var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
@@ -81964,17 +81964,17 @@ function AxisHead({
     const canvas = document.createElement("canvas");
     canvas.width = 64;
     canvas.height = 64;
-    const context3 = canvas.getContext("2d");
-    context3.beginPath();
-    context3.arc(32, 32, 16, 0, 2 * Math.PI);
-    context3.closePath();
-    context3.fillStyle = arcStyle;
-    context3.fill();
+    const context2 = canvas.getContext("2d");
+    context2.beginPath();
+    context2.arc(32, 32, 16, 0, 2 * Math.PI);
+    context2.closePath();
+    context2.fillStyle = arcStyle;
+    context2.fill();
     if (label) {
-      context3.font = font;
-      context3.textAlign = "center";
-      context3.fillStyle = labelColor;
-      context3.fillText(label, 32, 41);
+      context2.font = font;
+      context2.textAlign = "center";
+      context2.fillStyle = labelColor;
+      context2.fillText(label, 32, 41);
     }
     return new CanvasTexture(canvas);
   }, [arcStyle, label, labelColor, font]);
@@ -82208,250 +82208,6 @@ var Grid = /* @__PURE__ */ React12.forwardRef(({
     args
   }));
 });
-
-// node_modules/@react-three/drei/core/Bounds.js
-var React13 = __toESM(require_react());
-init_three_module();
-var AnimationState = /* @__PURE__ */ (function(AnimationState2) {
-  AnimationState2[AnimationState2["NONE"] = 0] = "NONE";
-  AnimationState2[AnimationState2["START"] = 1] = "START";
-  AnimationState2[AnimationState2["ACTIVE"] = 2] = "ACTIVE";
-  return AnimationState2;
-})(AnimationState || {});
-var isOrthographic = (def) => def && def.isOrthographicCamera;
-var isBox3 = (def) => def && def.isBox3;
-var interpolateFuncDefault = (t2) => {
-  return 1 - Math.exp(-5 * t2) + 7e-3 * t2;
-};
-var context2 = /* @__PURE__ */ React13.createContext(null);
-function Bounds({
-  children,
-  maxDuration = 1,
-  margin = 1.2,
-  observe,
-  fit,
-  clip,
-  interpolateFunc = interpolateFuncDefault,
-  onFit
-}) {
-  const ref = React13.useRef(null);
-  const {
-    camera,
-    size,
-    invalidate: invalidate2
-  } = useThree();
-  const controls = useThree((state2) => state2.controls);
-  const onFitRef = React13.useRef(onFit);
-  onFitRef.current = onFit;
-  const origin2 = React13.useRef({
-    camPos: new Vector3(),
-    camRot: new Quaternion(),
-    camZoom: 1
-  });
-  const goal = React13.useRef({
-    camPos: void 0,
-    camRot: void 0,
-    camZoom: void 0,
-    camUp: void 0,
-    target: void 0
-  });
-  const animationState = React13.useRef(AnimationState.NONE);
-  const t2 = React13.useRef(0);
-  const [box] = React13.useState(() => new Box3());
-  const api = React13.useMemo(() => {
-    function getSize() {
-      const boxSize = box.getSize(new Vector3());
-      const center = box.getCenter(new Vector3());
-      const maxSize = Math.max(boxSize.x, boxSize.y, boxSize.z);
-      const fitHeightDistance = isOrthographic(camera) ? maxSize * 4 : maxSize / (2 * Math.atan(Math.PI * camera.fov / 360));
-      const fitWidthDistance = isOrthographic(camera) ? maxSize * 4 : fitHeightDistance / camera.aspect;
-      const distance = margin * Math.max(fitHeightDistance, fitWidthDistance);
-      return {
-        box,
-        size: boxSize,
-        center,
-        distance
-      };
-    }
-    return {
-      getSize,
-      refresh(object) {
-        if (isBox3(object)) box.copy(object);
-        else {
-          const target2 = object || ref.current;
-          if (!target2) return this;
-          target2.updateWorldMatrix(true, true);
-          box.setFromObject(target2);
-        }
-        if (box.isEmpty()) {
-          const max = camera.position.length() || 10;
-          box.setFromCenterAndSize(new Vector3(), new Vector3(max, max, max));
-        }
-        origin2.current.camPos.copy(camera.position);
-        origin2.current.camRot.copy(camera.quaternion);
-        isOrthographic(camera) && (origin2.current.camZoom = camera.zoom);
-        goal.current.camPos = void 0;
-        goal.current.camRot = void 0;
-        goal.current.camZoom = void 0;
-        goal.current.camUp = void 0;
-        goal.current.target = void 0;
-        return this;
-      },
-      reset() {
-        const {
-          center,
-          distance
-        } = getSize();
-        const direction = camera.position.clone().sub(center).normalize();
-        goal.current.camPos = center.clone().addScaledVector(direction, distance);
-        goal.current.target = center.clone();
-        const mCamRot = new Matrix4().lookAt(goal.current.camPos, goal.current.target, camera.up);
-        goal.current.camRot = new Quaternion().setFromRotationMatrix(mCamRot);
-        animationState.current = AnimationState.START;
-        t2.current = 0;
-        return this;
-      },
-      moveTo(position) {
-        goal.current.camPos = Array.isArray(position) ? new Vector3(...position) : position.clone();
-        animationState.current = AnimationState.START;
-        t2.current = 0;
-        return this;
-      },
-      lookAt({
-        target: target2,
-        up
-      }) {
-        goal.current.target = Array.isArray(target2) ? new Vector3(...target2) : target2.clone();
-        if (up) {
-          goal.current.camUp = Array.isArray(up) ? new Vector3(...up) : up.clone();
-        } else {
-          goal.current.camUp = camera.up.clone();
-        }
-        const mCamRot = new Matrix4().lookAt(goal.current.camPos || camera.position, goal.current.target, goal.current.camUp);
-        goal.current.camRot = new Quaternion().setFromRotationMatrix(mCamRot);
-        animationState.current = AnimationState.START;
-        t2.current = 0;
-        return this;
-      },
-      /**
-       * @deprecated Use moveTo and lookAt instead
-       */
-      to({
-        position,
-        target: target2
-      }) {
-        return this.moveTo(position).lookAt({
-          target: target2
-        });
-      },
-      fit() {
-        if (!isOrthographic(camera)) {
-          return this.reset();
-        }
-        let maxHeight = 0, maxWidth = 0;
-        const vertices = [new Vector3(box.min.x, box.min.y, box.min.z), new Vector3(box.min.x, box.max.y, box.min.z), new Vector3(box.min.x, box.min.y, box.max.z), new Vector3(box.min.x, box.max.y, box.max.z), new Vector3(box.max.x, box.max.y, box.max.z), new Vector3(box.max.x, box.max.y, box.min.z), new Vector3(box.max.x, box.min.y, box.max.z), new Vector3(box.max.x, box.min.y, box.min.z)];
-        const pos = goal.current.camPos || camera.position;
-        const target2 = goal.current.target || (controls == null ? void 0 : controls.target);
-        const up = goal.current.camUp || camera.up;
-        const mCamWInv = target2 ? new Matrix4().lookAt(pos, target2, up).setPosition(pos).invert() : camera.matrixWorldInverse;
-        for (const v of vertices) {
-          v.applyMatrix4(mCamWInv);
-          maxHeight = Math.max(maxHeight, Math.abs(v.y));
-          maxWidth = Math.max(maxWidth, Math.abs(v.x));
-        }
-        maxHeight *= 2;
-        maxWidth *= 2;
-        const zoomForHeight = (camera.top - camera.bottom) / maxHeight;
-        const zoomForWidth = (camera.right - camera.left) / maxWidth;
-        goal.current.camZoom = Math.min(zoomForHeight, zoomForWidth) / margin;
-        animationState.current = AnimationState.START;
-        t2.current = 0;
-        onFitRef.current && onFitRef.current(this.getSize());
-        return this;
-      },
-      clip() {
-        const {
-          distance
-        } = getSize();
-        camera.near = distance / 100;
-        camera.far = distance * 100;
-        camera.updateProjectionMatrix();
-        if (controls) {
-          controls.maxDistance = distance * 10;
-          controls.update();
-        }
-        invalidate2();
-        return this;
-      }
-    };
-  }, [box, camera, controls, margin, invalidate2]);
-  React13.useLayoutEffect(() => {
-    if (controls) {
-      const callback = () => {
-        if (controls && goal.current.target && animationState.current !== AnimationState.NONE) {
-          const front = new Vector3().setFromMatrixColumn(camera.matrix, 2);
-          const d0 = origin2.current.camPos.distanceTo(controls.target);
-          const d1 = (goal.current.camPos || origin2.current.camPos).distanceTo(goal.current.target);
-          const d = (1 - t2.current) * d0 + t2.current * d1;
-          controls.target.copy(camera.position).addScaledVector(front, -d);
-          controls.update();
-        }
-        animationState.current = AnimationState.NONE;
-      };
-      controls.addEventListener("start", callback);
-      return () => controls.removeEventListener("start", callback);
-    }
-  }, [controls]);
-  const count = React13.useRef(0);
-  React13.useLayoutEffect(() => {
-    if (observe || count.current++ === 0) {
-      api.refresh();
-      if (fit) api.reset().fit();
-      if (clip) api.clip();
-    }
-  }, [size, clip, fit, observe, camera, controls]);
-  useFrame((state2, delta) => {
-    if (animationState.current === AnimationState.START) {
-      animationState.current = AnimationState.ACTIVE;
-      invalidate2();
-    } else if (animationState.current === AnimationState.ACTIVE) {
-      t2.current += delta / maxDuration;
-      if (t2.current >= 1) {
-        goal.current.camPos && camera.position.copy(goal.current.camPos);
-        goal.current.camRot && camera.quaternion.copy(goal.current.camRot);
-        goal.current.camUp && camera.up.copy(goal.current.camUp);
-        goal.current.camZoom && isOrthographic(camera) && (camera.zoom = goal.current.camZoom);
-        camera.updateMatrixWorld();
-        camera.updateProjectionMatrix();
-        if (controls && goal.current.target) {
-          controls.target.copy(goal.current.target);
-          controls.update();
-        }
-        animationState.current = AnimationState.NONE;
-      } else {
-        const k2 = interpolateFunc(t2.current);
-        goal.current.camPos && camera.position.lerpVectors(origin2.current.camPos, goal.current.camPos, k2);
-        goal.current.camRot && camera.quaternion.slerpQuaternions(origin2.current.camRot, goal.current.camRot, k2);
-        goal.current.camUp && camera.up.set(0, 1, 0).applyQuaternion(camera.quaternion);
-        goal.current.camZoom && isOrthographic(camera) && (camera.zoom = (1 - k2) * origin2.current.camZoom + k2 * goal.current.camZoom);
-        camera.updateMatrixWorld();
-        camera.updateProjectionMatrix();
-      }
-      invalidate2();
-    }
-  });
-  return /* @__PURE__ */ React13.createElement("group", {
-    ref
-  }, /* @__PURE__ */ React13.createElement(context2.Provider, {
-    value: api
-  }, children));
-}
-
-// js/editor/App.jsx
-import { useEditorStore as useEditorStore2 } from "./store.js";
-
-// js/editor/components/Viewer3D.jsx
-var import_react9 = __toESM(require_react(), 1);
 
 // js/state.js
 var LOG_PREFIX = "[State]";
@@ -82746,6 +82502,7 @@ var useEditorStore = create((set, get) => ({
 window.__pcfSetSupportRatio = useEditorStore.getState().setSupportRatio;
 
 // js/editor/components/Viewer3D.jsx
+var import_react9 = __toESM(require_react(), 1);
 init_three_module();
 
 // js/editor/components/Node.jsx
@@ -82774,23 +82531,30 @@ var mapCoord = (p3) => {
   if (!p3) return new Vector3(0, 0, 0);
   return new Vector3(-(Number(p3.y) || 0), Number(p3.z) || 0, -(Number(p3.x) || 0));
 };
-var computeBounds = (components = []) => {
+var computeBounds = (components = [], nodes = [], sticks = []) => {
   const box = new Box3();
   const tmp2 = new Box3();
+  const addPoint = (pt) => {
+    if (!pt) return;
+    const v = mapCoord(pt.position || pt);
+    if (Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z)) {
+      tmp2.set(v, v);
+      box.union(tmp2);
+    }
+  };
   for (const c2 of components) {
     const pts = [];
     if (Array.isArray(c2.points)) pts.push(...c2.points);
     if (c2.centrePoint) pts.push(c2.centrePoint);
     if (c2.branch1Point) pts.push(c2.branch1Point);
     if (c2.coOrds) pts.push(c2.coOrds);
-    for (const pt of pts) {
-      const v = mapCoord(pt);
-      if (Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z)) {
-        tmp2.set(v, v);
-        box.union(tmp2);
-      }
-    }
+    pts.forEach(addPoint);
   }
+  nodes.forEach(addPoint);
+  sticks.forEach((s) => {
+    if (s?.start) addPoint(s.start);
+    if (s?.end) addPoint(s.end);
+  });
   if (box.isEmpty()) return { box, centre: new Vector3(), minY: 0, empty: true };
   return { box, centre: box.getCenter(new Vector3()), minY: box.min.y, empty: false };
 };
@@ -82821,7 +82585,7 @@ var _scanAttrsForRefNo = (attrs) => {
     const m2 = String(v || "").match(/RefNo:=\s*([^\s,]+)/i);
     if (m2) return m2[1];
   }
-  return attrs["REFNO"] || attrs["COMPONENT-ATTRIBUTE99"] || attrs["PIPELINE-REFERENCE"] || null;
+  return attrs["REFNO"] || attrs["COMPONENT-ATTRIBUTE97"] || attrs["PIPELINE-REFERENCE"] || null;
 };
 var extractRefNo = (attrs, components = [], idx = -1) => {
   const own = _scanAttrsForRefNo(attrs);
@@ -83155,9 +82919,11 @@ var Viewer3D = () => {
   const nodes = useEditorStore((state2) => state2.nodes);
   const sticks = useEditorStore((state2) => state2.sticks);
   const deselect = useEditorStore((state2) => state2.deselect);
-  const { centre, minY, empty } = (0, import_react9.useMemo)(() => computeBounds(components), [components]);
+  const { centre, minY, empty } = (0, import_react9.useMemo)(() => computeBounds(components, nodes, sticks), [components, nodes, sticks]);
   const offset = (0, import_react9.useMemo)(() => new Vector3(-centre.x, -centre.y, -centre.z), [centre]);
   const gridY = (0, import_react9.useMemo)(() => empty ? 0 : minY - centre.y - 50, [empty, minY, centre]);
+  const firstSnapRef = (0, import_react9.useRef)(false);
+  const snapTokenRef = (0, import_react9.useRef)(0);
   const maxGlobalBore = (0, import_react9.useMemo)(() => {
     let max = 50;
     components.forEach((c2) => {
@@ -83167,19 +82933,26 @@ var Viewer3D = () => {
     return max;
   }, [components]);
   (0, import_react9.useEffect)(() => {
-    if (components && components.length > 0) {
-      const timer2 = setTimeout(() => {
+    if (!components || components.length === 0) return;
+    const token = Date.now();
+    snapTokenRef.current = token;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (snapTokenRef.current !== token) return;
         if (window.__pcfCameraSnap) window.__pcfCameraSnap([1, 1, 1], [0, 1, 0]);
         if (window.__pcfCameraCenter) window.__pcfCameraCenter();
-      }, 100);
-      return () => clearTimeout(timer2);
-    }
+        firstSnapRef.current = true;
+      });
+    });
+    return () => {
+      if (snapTokenRef.current === token) snapTokenRef.current = 0;
+    };
   }, [components]);
   const renderContent = () => /* @__PURE__ */ import_react9.default.createElement("group", { position: offset.toArray() }, components.map((c2) => /* @__PURE__ */ import_react9.default.createElement(ComponentMesh, { key: c2.id || Math.random(), data: c2, defaultBore: maxGlobalBore })));
   return /* @__PURE__ */ import_react9.default.createElement(import_react9.default.Fragment, null, /* @__PURE__ */ import_react9.default.createElement("ambientLight", { intensity: 0.8 }), /* @__PURE__ */ import_react9.default.createElement("pointLight", { position: [5e3, 5e3, 5e3], intensity: 1 }), /* @__PURE__ */ import_react9.default.createElement("directionalLight", { position: [-5e3, 5e3, -2e3], intensity: 1 }), /* @__PURE__ */ import_react9.default.createElement(Grid, { infiniteGrid: true, sectionColor: "#555", cellColor: "#333", fadeDistance: 5e4, position: [0, gridY, 0] }), /* @__PURE__ */ import_react9.default.createElement("mesh", { visible: false, onClick: (e2) => {
     e2.stopPropagation();
     deselect();
-  } }, /* @__PURE__ */ import_react9.default.createElement("sphereGeometry", { args: [999999] }), /* @__PURE__ */ import_react9.default.createElement("meshBasicMaterial", null)), /* @__PURE__ */ import_react9.default.createElement(Bounds, { fit: true, clip: true, margin: 1.2 }, renderContent()));
+  } }, /* @__PURE__ */ import_react9.default.createElement("sphereGeometry", { args: [999999] }), /* @__PURE__ */ import_react9.default.createElement("meshBasicMaterial", null)), /* @__PURE__ */ import_react9.default.createElement("group", null, renderContent()));
 };
 
 // js/editor/components/PropertyPanel.jsx
@@ -83225,7 +82998,12 @@ function CameraBridge() {
   (0, import_react11.useEffect)(() => {
     if (controls) {
       window.__pcfOrbitControls = controls;
+      const abort = () => {
+        transRef.current.active = false;
+      };
+      controls.addEventListener("start", abort);
       return () => {
+        controls.removeEventListener("start", abort);
         if (window.__pcfOrbitControls === controls) delete window.__pcfOrbitControls;
       };
     }
@@ -83307,7 +83085,7 @@ function CameraBridge() {
 }
 var App = () => {
   const [panelCollapsed, setPanelCollapsed] = (0, import_react11.useState)(false);
-  const renderId = useEditorStore2((state2) => state2.renderId) || 0;
+  const renderId = useEditorStore((state2) => state2.renderId) || 0;
   const PANEL_W = 280;
   const PANEL_STRIP = 32;
   const panelWidth = panelCollapsed ? PANEL_STRIP : PANEL_W;
@@ -83391,16 +83169,16 @@ var mountReactApp = (containerId, data) => {
   if (!container) return;
   window.__REACT_BRIDGE_DATA = data;
   if (root) {
-    if (useEditorStore2?.getState) {
-      useEditorStore2.getState().setComponents(data.components);
-      useEditorStore2.getState().setRenderId?.(Date.now());
+    if (useEditorStore?.getState) {
+      useEditorStore.getState().setComponents(data.components);
+      useEditorStore.getState().setRenderId?.(Date.now());
     }
     return root;
   }
   root = (0, import_client.createRoot)(container);
   root.render(/* @__PURE__ */ import_react11.default.createElement(App, null));
-  if (useEditorStore2?.getState) {
-    useEditorStore2.getState().setComponents(data.components);
+  if (useEditorStore?.getState) {
+    useEditorStore.getState().setComponents(data.components);
   }
   return root;
 };

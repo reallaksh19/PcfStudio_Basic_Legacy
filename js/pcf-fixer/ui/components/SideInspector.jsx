@@ -175,7 +175,7 @@ export const SideInspector = () => {
   if (panelState === 'HIDDEN') return null;
 
   return (
-    <div data-testid="side-inspector-panel" data-panel-state={panelState} className="w-72 bg-slate-900 border border-slate-700 shadow-2xl rounded-lg overflow-hidden flex flex-col max-h-[calc(100vh-10rem)] shrink-0">
+    <div data-testid="side-inspector-panel" data-panel-state={panelState} className="w-72 bg-slate-900 border border-slate-700 shadow-2xl rounded-lg overflow-hidden flex flex-col max-h-[calc(100vh-10rem)] shrink-0" onPointerDown={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}>
       {/* Header */}
       <div className="flex justify-between items-center bg-slate-800 p-3 border-b border-slate-700">
         <div className="flex items-center gap-2">

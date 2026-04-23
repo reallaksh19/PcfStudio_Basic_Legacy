@@ -4,6 +4,8 @@ import { ExcelParser } from "./excel-parser.js"; // Import ExcelParser
 import { materialService } from "./material-service.js"; // Import MaterialService
 
 const MOD = 'DataManager';
+const PIPING_CLASS_STORAGE_KEY = 'pcf_master_pipingclass';
+const PIPING_CLASS_STORAGE_FORMAT = 'pcf_pipingclass_compact_v1';
 
 /**
  * Central Data Store for the Integration Module.
@@ -115,6 +117,65 @@ export class DataManager {
         this._readyCallbacks = [];
     }
 
+    _packPipingClassForStorage(rows) {
+        if (!Array.isArray(rows) || rows.length === 0) return [];
+        const headerSet = new Set();
+        for (const row of rows) {
+            if (!row || typeof row !== 'object') continue;
+            for (const key of Object.keys(row)) headerSet.add(key);
+        }
+        const headers = [...headerSet];
+        if (!headers.length) return [];
+
+        const dict = [];
+        const dictIndex = new Map();
+        const toIndex = (value) => {
+            const text = value == null ? '' : String(value);
+            const hit = dictIndex.get(text);
+            if (hit != null) return hit;
+            const idx = dict.length;
+            dict.push(text);
+            dictIndex.set(text, idx);
+            return idx;
+        };
+        const packedRows = rows.map((row) => headers.map((h) => toIndex(row?.[h])));
+        return {
+            __format: PIPING_CLASS_STORAGE_FORMAT,
+            headers,
+            dict,
+            rows: packedRows
+        };
+    }
+
+    _unpackPipingClassFromStorage(payload) {
+        if (Array.isArray(payload)) return payload;
+        if (!payload || payload.__format !== PIPING_CLASS_STORAGE_FORMAT) return [];
+        const headers = Array.isArray(payload.headers) ? payload.headers : [];
+        const dict = Array.isArray(payload.dict) ? payload.dict : [];
+        const rows = Array.isArray(payload.rows) ? payload.rows : [];
+        if (!headers.length || !rows.length) return [];
+        return rows.map((packed) => {
+            const row = {};
+            for (let i = 0; i < headers.length; i++) {
+                const idx = Array.isArray(packed) ? packed[i] : null;
+                row[headers[i]] = Number.isInteger(idx) && idx >= 0 && idx < dict.length ? dict[idx] : '';
+            }
+            return row;
+        });
+    }
+
+    getPipingClassMasterFromStorage() {
+        try {
+            const raw = localStorage.getItem(PIPING_CLASS_STORAGE_KEY);
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            return this._unpackPipingClassFromStorage(parsed);
+        } catch (e) {
+            console.warn('[DataManager] Failed to decode stored piping class master:', e);
+            return [];
+        }
+    }
+
     // ── Persistence ──────────────────────────────────────────────────
 
     saveToStorage(type = null) {
@@ -122,7 +183,7 @@ export class DataManager {
             if (!type || type === 'weights')
                 localStorage.setItem('pcf_master_weights', JSON.stringify(this.weightData));
             if (!type || type === 'pipingclass')
-                localStorage.setItem('pcf_master_pipingclass', JSON.stringify(this.pipingClassMaster));
+                localStorage.setItem(PIPING_CLASS_STORAGE_KEY, JSON.stringify(this._packPipingClassForStorage(this.pipingClassMaster)));
             if (!type || type === 'linedump')
                 localStorage.setItem('pcf_master_linedump', JSON.stringify(this.lineDumpData));
             if (!type || type === 'linelist')
@@ -161,7 +222,8 @@ export class DataManager {
             // Logic Fix: Only parse the massive piping class into active memory if the user's config explicitly asks for it.
             // Otherwise, leave it safely dormant in localStorage.
             if (autoLoadPipingClass) {
-                this.pipingClassMaster = safeParse('pcf_master_pipingclass', []);
+                const storedPipingClass = safeParse(PIPING_CLASS_STORAGE_KEY, []);
+                this.pipingClassMaster = this._unpackPipingClassFromStorage(storedPipingClass);
                 console.info(`[DataManager] Piping Class Master auto-loaded into memory (${this.pipingClassMaster.length} rows) because toggle is ON.`);
             } else {
                 this.pipingClassMaster = [];
@@ -246,12 +308,35 @@ export class DataManager {
         console.info('[DataManager] Checking for default master data to load in parallel...');
 
         const fetchPromises = [];
+        const fetchJsonWithFallback = async (candidateUrls, label) => {
+            let lastErr = null;
+            for (const url of candidateUrls) {
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error(`Status ${res.status}`);
+                    return await res.json();
+                } catch (err) {
+                    lastErr = err;
+                }
+            }
+            try {
+                const { flashStatusNotice } = await import('../ui/status-bar.js');
+                flashStatusNotice(`⚠ ${label} not found; using fallback`, 'warn', 3000);
+            } catch {}
+            throw lastErr || new Error(`${label} unavailable`);
+        };
 
         // 1. Material Map
         if (this.materialMap.length === 0) {
             fetchPromises.push(
-                fetch('./Docs/Masters/PCF_MAT_MAP.json')
-                    .then(res => res.ok ? res.json() : Promise.reject(`Status ${res.status}`))
+                fetchJsonWithFallback(
+                    [
+                        './Docs/Masters/PCF_MAT_MAP.json',
+                        '/Docs/Masters/PCF_MAT_MAP.json',
+                        './public/Docs/Masters/PCF_MAT_MAP.json'
+                    ],
+                    'PCF_MAT_MAP.json'
+                )
                     .then(result => {
                         if (result && result.length > 0) {
                             // Don't trigger change events here to strictly enforce MasterDataReady sync
@@ -266,8 +351,14 @@ export class DataManager {
         // 2. Weight Master
         if (this.weightData.length === 0) {
             fetchPromises.push(
-                fetch('./Docs/Masters/wtValveweights.json')
-                    .then(res => res.ok ? res.json() : Promise.reject(`Status ${res.status}`))
+                fetchJsonWithFallback(
+                    [
+                        './Docs/Masters/wtValveweights.json',
+                        '/Docs/Masters/wtValveweights.json',
+                        './public/Docs/Masters/wtValveweights.json'
+                    ],
+                    'wtValveweights.json'
+                )
                     .then(result => {
                         if (result && result.length > 0) {
                             // Don't trigger change events here to strictly enforce MasterDataReady sync
@@ -309,16 +400,26 @@ export class DataManager {
 
             try {
                 const baseUrl = this._pipingClassBaseUrl.endsWith('/') ? this._pipingClassBaseUrl : this._pipingClassBaseUrl + '/';
-                const res = await fetch(`${baseUrl}${cleanSize}.json`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && data.length > 0) {
-                        // Append without replacing existing items
-                        this.pipingClassMaster.push(...data);
-                        this._loadedPipingSizes.add(cleanSize);
-                        newRowsAdded += data.length;
-                        console.info(`[DataManager] Lazily loaded Piping Class Master for size ${sizeStr}: ${data.length} rows`);
-                    }
+                const candidateUrls = [
+                    `${baseUrl}${cleanSize}.json`,
+                    `${baseUrl.replace('./Docs/', '/Docs/')}${cleanSize}.json`,
+                    `${baseUrl.replace('./Docs/', './public/Docs/')}${cleanSize}.json`
+                ];
+                let data = null;
+                for (const u of candidateUrls) {
+                    try {
+                        const res = await fetch(u);
+                        if (!res.ok) continue;
+                        data = await res.json();
+                        break;
+                    } catch {}
+                }
+                if (data && data.length > 0) {
+                    // Append without replacing existing items
+                    this.pipingClassMaster.push(...data);
+                    this._loadedPipingSizes.add(cleanSize);
+                    newRowsAdded += data.length;
+                    console.info(`[DataManager] Lazily loaded Piping Class Master for size ${sizeStr}: ${data.length} rows`);
                 }
             } catch (e) {
                 // Not all sizes will have a file, that's fine.

@@ -566,7 +566,7 @@ export function DataTableTab({ stage = "1" }) {
      }
 
      return rows;
-  }, [dataTable, filterAction, searchText]);
+  }, [dataTable, filterAction, searchText, columnFilters, sortConfig]);
 
   if (stage === "3" && (!currentData || currentData.length === 0)) {
 

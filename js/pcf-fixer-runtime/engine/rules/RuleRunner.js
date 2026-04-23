@@ -1,11 +1,11 @@
-import { runGeoRules } from '/js/pcf-fixer-runtime/engine/rules/GeoRules.js';
-import { runChnRules } from '/js/pcf-fixer-runtime/engine/rules/ChnRules.js';
-import { runBrnRules } from '/js/pcf-fixer-runtime/engine/rules/BrnRules.js';
-import { runDatRules } from '/js/pcf-fixer-runtime/engine/rules/DatRules.js';
-import { runSupportRules } from '/js/pcf-fixer-runtime/engine/rules/SupportRules.js';
-import { runAggRules } from '/js/pcf-fixer-runtime/engine/rules/AggRules.js';
-import { runSpecRules } from '/js/pcf-fixer-runtime/engine/rules/SpecRules.js';
-import { runRegisteredRules } from '/js/pcf-fixer-runtime/engine/rules/RuleRegistry.js';
+import { runGeoRules } from './GeoRules.js';
+import { runChnRules } from './ChnRules.js';
+import { runBrnRules } from './BrnRules.js';
+import { runDatRules } from './DatRules.js';
+import { runSupportRules } from './SupportRules.js';
+import { runAggRules } from './AggRules.js';
+import { runSpecRules } from './SpecRules.js';
+import { runRegisteredRules } from './RuleRegistry.js';
 
 // If a row has been approved/acknowledged by the user for a specific fix,
 // we should intercept the log to suppress re-throwing the same warning next pass.

@@ -474,11 +474,11 @@ async function _render3D() {
         try {
             let mountReactApp;
             try {
-                ({ mountReactApp } = await import('../editor/App.jsx'));
-            } catch (jsxError) {
-                console.warn('[ViewerTab] Vite import failed, retrying browser bundle', jsxError);
                 const bundleUrl = new URL('../editor/App.bundle.js', import.meta.url).href;
                 ({ mountReactApp } = await import(/* @vite-ignore */ bundleUrl));
+            } catch (bundleError) {
+                console.warn('[ViewerTab] Bundle import failed, retrying Vite App.jsx', bundleError);
+                ({ mountReactApp } = await import('../editor/App.jsx'));
             }
 
             const { registerUpdateCallback } = await import('../editor/store.js');
@@ -532,7 +532,16 @@ async function _render3D() {
                 _exportPcfToTextarea();
             }
 
-            mountReactApp('react-root', { components: safeComponents });
+            try {
+                mountReactApp('react-root', { components: safeComponents });
+            } catch (renderErr) {
+                console.warn(`${LOG_PREFIX} React viewer mount failed; falling back to legacy renderer`, renderErr);
+                try {
+                    const { flashStatusNotice } = await import('../ui/status-bar.js');
+                    flashStatusNotice('⚠ 3D React viewer failed; using legacy view', 'warn', 3000);
+                } catch {}
+                throw renderErr;
+            }
             console.info(`${LOG_PREFIX} React Editor Mounted with ${safeComponents.length} components.`);
             return; // Stop here, do not load legacy
         } catch (e) {

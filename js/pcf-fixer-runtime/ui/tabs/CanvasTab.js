@@ -2,29 +2,29 @@ import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Line, Html, Text, GizmoHelper, GizmoViewport, OrthographicCamera, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
-import { useStore } from '/js/pcf-fixer-runtime/store/useStore.js';
-import { useAppContext } from '/js/pcf-fixer-runtime/store/AppContext.js';
-import { applyFixes } from '/js/pcf-fixer-runtime/engine/FixApplicator.js';
-import { createLogger } from '/js/pcf-fixer-runtime/utils/Logger.js';
-import { fix6mmGaps, fix25mmGapsWithPipe, breakPipeAtPoint, insertSupportAtPipe } from '/js/pcf-fixer-runtime/engine/GapFixEngine.js';
-import { autoAssignPipelineRefs } from '/js/pcf-fixer-runtime/engine/TopologyEngine.js';
-import { SideInspector } from '/js/pcf-fixer-runtime/ui/components/SideInspector.js';
-import { LogDrawer } from '/js/pcf-fixer-runtime/ui/components/LogDrawer.js';
-import { SceneHealthHUD } from '/js/pcf-fixer-runtime/ui/components/SceneHealthHUD.js';
-import { SupportPropertyPanel } from '/js/pcf-fixer-runtime/ui/components/SupportPropertyPanel.js';
-import { GapSidebar } from '/js/pcf-fixer-runtime/ui/components/GapSidebar.js';
-import { PipelinePropertyPanel } from '/js/pcf-fixer-runtime/ui/components/PipelinePropertyPanel.js';
-import { NavigationPanel } from '/js/pcf-fixer-runtime/ui/components/NavigationPanel.js';
-import { SettingsModal } from '/js/pcf-fixer-runtime/ui/components/SettingsModal.js';
-import { ClippingPlanesLayer, ClippingPanelUI } from '/js/pcf-fixer-runtime/ui/components/ClippingPlanesLayer.js';
-import { ToolbarRibbon } from '/js/pcf-fixer-runtime/ui/components/ToolbarRibbon.js';
-import { dbg } from '/js/pcf-fixer-runtime/utils/debugGate.js';
-import { DebugConsole } from '/js/pcf-fixer-runtime/ui/components/DebugConsole.js';
+import { useStore } from '../../store/useStore.js';
+import { useAppContext } from '../../store/AppContext.js';
+import { applyFixes } from '../../engine/FixApplicator.js';
+import { createLogger } from '../../utils/Logger.js';
+import { fix6mmGaps, fix25mmGapsWithPipe, breakPipeAtPoint, insertSupportAtPipe } from '../../engine/GapFixEngine.js';
+import { autoAssignPipelineRefs } from '../../engine/TopologyEngine.js';
+import { SideInspector } from '../components/SideInspector.js';
+import { LogDrawer } from '../components/LogDrawer.js';
+import { SceneHealthHUD } from '../components/SceneHealthHUD.js';
+import { SupportPropertyPanel } from '../components/SupportPropertyPanel.js';
+import { GapSidebar } from '../components/GapSidebar.js';
+import { PipelinePropertyPanel } from '../components/PipelinePropertyPanel.js';
+import { NavigationPanel } from '../components/NavigationPanel.js';
+import { SettingsModal } from '../components/SettingsModal.js';
+import { ClippingPlanesLayer, ClippingPanelUI } from '../components/ClippingPlanesLayer.js';
+import { ToolbarRibbon } from '../components/ToolbarRibbon.js';
+import { dbg } from '../../utils/debugGate.js';
+import { DebugConsole } from '../components/DebugConsole.js';
 
 // ----------------------------------------------------
 // Colour & geometry helpers per component type
 // ----------------------------------------------------
-import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "../../jsx-runtime.js";
 const typeColor = (type, appSettings) => {
   const defaultColors = {
     PIPE: '#cbd5e1',
@@ -3381,7 +3381,7 @@ export function CanvasTab() {
   const executeOverlapSolver = () => {
     try {
       pushHistory('Overlap Solver');
-      import('/js/pcf-fixer-runtime/engine/OverlapSolver.js').then(({
+      import('../../engine/OverlapSolver.js').then(({
         resolveOverlaps
       }) => {
         const {

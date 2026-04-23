@@ -1,4 +1,4 @@
-import { dbg } from '/js/pcf-fixer-runtime/utils/debugGate.js';
+import { dbg } from '../utils/debugGate.js';
 
 export const initialState = {
     drawnPipes: [],

@@ -1,17 +1,17 @@
 // @ts-check
-/** @typedef {import('/js/pcf-fixer-runtime/engine/types.js').PcfComponent} PcfComponent */
-/** @typedef {import('/js/pcf-fixer-runtime/engine/types.js').WalkContext} WalkContext */
-/** @typedef {import('/js/pcf-fixer-runtime/engine/types.js').Config} Config */
-/** @typedef {import('/js/pcf-fixer-runtime/engine/types.js').Logger} Logger */
+/** @typedef {import('./types.js').PcfComponent} PcfComponent */
+/** @typedef {import('./types.js').WalkContext} WalkContext */
+/** @typedef {import('./types.js').Config} Config */
+/** @typedef {import('./types.js').Logger} Logger */
 
-import { vec } from '/js/pcf-fixer-runtime/math/VectorMath.js';
-import { detectElementAxis, detectBranchAxis, detectBranchDirection, getElementVector } from '/js/pcf-fixer-runtime/engine/AxisDetector.js';
-import { getEntryPoint, getExitPoint } from '/js/pcf-fixer-runtime/engine/GraphBuilder.js';
-import { analyzeGap } from '/js/pcf-fixer-runtime/engine/GapOverlap.js';
-import { sweepForNeighbor } from '/js/pcf-fixer-runtime/engine/pte-engine.js';
-import { runElementRules, runSupportRules, runAggRules } from '/js/pcf-fixer-runtime/engine/rules/RuleRunner.js';
-import { detectDuplicates, detectOrphans } from '/js/pcf-fixer-runtime/engine/rules/AggRules.js';
-import { runSpaRules } from '/js/pcf-fixer-runtime/engine/rules/SpaRules.js';
+import { vec } from '../math/VectorMath.js';
+import { detectElementAxis, detectBranchAxis, detectBranchDirection, getElementVector } from './AxisDetector.js';
+import { getEntryPoint, getExitPoint } from './GraphBuilder.js';
+import { analyzeGap } from './GapOverlap.js';
+import { sweepForNeighbor } from './pte-engine.js';
+import { runElementRules, runSupportRules, runAggRules } from './rules/RuleRunner.js';
+import { detectDuplicates, detectOrphans } from './rules/AggRules.js';
+import { runSpaRules } from './rules/SpaRules.js';
 
 /**
  * @param {{ components: PcfComponent[], terminals: PcfComponent[], edges: Map<number,PcfComponent>, branchEdges: Map<number,PcfComponent> }} graph

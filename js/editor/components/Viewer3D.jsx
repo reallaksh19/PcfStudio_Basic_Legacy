@@ -666,9 +666,9 @@ export const Viewer3D = () => {
                 <sphereGeometry args={[999999]} />
                 <meshBasicMaterial />
             </mesh>
-            <Bounds fit clip margin={1.2}>
+            <group>
                 {renderContent()}
-            </Bounds>
+            </group>
         </>
     );
 };

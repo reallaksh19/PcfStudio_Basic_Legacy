@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
-import { dbg } from '/js/pcf-fixer-runtime/utils/debugGate.js';
-import { useStore } from '/js/pcf-fixer-runtime/store/useStore.js';
-import { jsx as _jsx, jsxs as _jsxs } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { dbg } from '../../utils/debugGate.js';
+import { useStore } from '../../store/useStore.js';
+import { jsx as _jsx, jsxs as _jsxs } from "../../jsx-runtime.js";
 const DebugEntry = memo(({
   entry,
   isExpanded,

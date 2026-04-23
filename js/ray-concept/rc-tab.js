@@ -18,6 +18,7 @@ import { linelistService }    from '../services/linelist-service.js';
 import { dataManager }        from '../services/data-manager.js';
 import { readExcelAsCSV, isExcelFile } from '../input/excel-parser.js';
 import { showMaterialCodePopup } from '../ui/material-code-popup.js';
+import { convertAvevaXmlToRawCsv } from './rc-xml-import.js';
 
 // ── Internal state (isolated to this tab) ────────────────────────────────────
 const rcState = {
@@ -83,7 +84,9 @@ function buildPanelHTML() {
     <div class="rc-tier-brand">
       <span class="rc-brand-mark">⚡ RAY</span>
       <input type="file" id="rc-file-input" accept=".csv,.txt,.xlsx,.xls,.xlsm" style="display:none">
+      <input type="file" id="rc-xml-file-input" accept=".xml" style="display:none">
       <button id="rc-btn-upload" style="${actionPill}">${ICO.upload} CSV / XLSX</button>
+      <button id="rc-btn-upload-xml" style="${actionPill}" title="Import AVEVA XML and map to Raw CSV">${ICO.upload} XML</button>
       <span id="rc-filename" class="rc-filename">No file loaded</span>
     </div>
     <span class="rc-brand-sep"></span>
@@ -297,6 +300,9 @@ function wireEvents(root) {
   root.querySelector('#rc-btn-upload').addEventListener('click', () =>
     root.querySelector('#rc-file-input').click());
   root.querySelector('#rc-file-input').addEventListener('change', e => { void onFileLoad(e, root); });
+  root.querySelector('#rc-btn-upload-xml').addEventListener('click', () =>
+    root.querySelector('#rc-xml-file-input').click());
+  root.querySelector('#rc-xml-file-input').addEventListener('change', e => { void onXmlFileLoad(e, root); });
 
   // RayConfig toggle
   root.querySelector('#rc-btn-config-toggle').addEventListener('click', () =>
@@ -465,6 +471,33 @@ async function onFileLoad(e, root) {
   } catch (err) {
     passLog(root, `✕ Input load failed: ${err.message}`, 'error');
     _mastersLog('error', '❌ Input load failed', { file: file.name, error: err.message });
+  } finally {
+    e.target.value = '';
+  }
+}
+
+async function onXmlFileLoad(e, root) {
+  const file = e.target.files[0];
+  if (!file) return;
+  rcState.rawFileName = file.name.replace(/\.xml$/i, '.csv');
+  root.querySelector('#rc-filename').textContent = file.name;
+  try {
+    passLog(root, `── INPUT(XML)  ${_now()} ────`, 'header');
+    passLog(root, `  ${file.name}`, 'info');
+    const xmlText = await file.text();
+    const converted = convertAvevaXmlToRawCsv(xmlText);
+    rcState.rawCsvText = converted.csvText;
+    const mappingRows = Object.entries(converted.mapping || {})
+      .map(([k, v]) => `${k} ← ${v}`)
+      .join(' | ');
+    passLog(root, `  ∙ ${converted.rowCount} XML nodes mapped to Raw CSV rows`, 'success');
+    passLog(root, `  ∙ Pipeline Ref mapped from Branchname: ${converted.branchName || '—'}`, 'stat');
+    passLog(root, `  ∙ Mapping: ${mappingRows}`, 'stat');
+    setBtn(root, '#rc-btn-s1', true);
+    setBtn(root, '#rc-btn-run-all', true);
+    setStepStatus(root, '#rc-btn-s1', 'ready');
+  } catch (err) {
+    passLog(root, `✕ XML import failed: ${err.message}`, 'error');
   } finally {
     e.target.value = '';
   }
@@ -645,7 +678,8 @@ function _buildIsoPcfCsvText(rows) {
 }
 
 async function runS4(root) {
-  if (!rcState.components.length) return;
+  const baseComponents = rcState.finalComponents.length ? rcState.finalComponents : rcState.components;
+  if (!baseComponents.length) return;
   passLog(root, `── S4  EMIT ISO  ${_now()} ──`, 'header');
   if (rcState.engineMode === 'common') {
     passLog(root, '  ⚙ Common PCF Builder engine active', 'stat');
@@ -664,7 +698,7 @@ async function runS4(root) {
       // Mark injected bridge pipes before scaling so they can be identified after
       const markedBridges = (rcState.injectedPipes || []).map(p => ({ ...p, _isBridge: true }));
       const { components: scaledComps } = await maybeScaleCoords(
-        [...rcState.components, ...markedBridges],
+        [...baseComponents, ...markedBridges],
         null  // auto-scale without popup
       );
       // Interleave bridge pipes after their source fittings (matching legacy S4 order)
@@ -689,14 +723,14 @@ async function runS4(root) {
     } else {
       // Legacy engine (unchanged)
       ({ pcfText } = runStage4(
-        rcState.components, rcState.injectedPipes, rcState.pipelineRef, debugLog
+        baseComponents, rcState.injectedPipes, rcState.pipelineRef, debugLog
       ));
     }
     rcState.isoMetricPcfText = pcfText;
     rcState.stageStatus.s4   = 'done';
     // Build ISOPCF CSV (drop GASK/INST/PCOM/MISC, stretch adjacent)
     const cfg4 = getConfig();
-    rcState.isoPcfComponents = buildIsopcfRows(rcState.components, cfg4);
+    rcState.isoPcfComponents = buildIsopcfRows(baseComponents, cfg4);
     rcState.isoPcfCsvText    = _buildIsoPcfCsvText(rcState.isoPcfComponents);
     const totalLines  = pcfText.split('\n').filter(l => l.trim()).length;
     const compBlocks  = (pcfText.match(/^(PIPE|FLANGE|BEND|TEE|OLET|VALVE|SUPPORT|ELBOW)/gm)||[]).length;
@@ -881,6 +915,7 @@ async function runLoadMasters(root) {
     const { updated, pcSnap, pcMissSamples, pcDataActive } = await loadMastersInto(targets, cfg, materialOverrides);
     rcState.pcActiveTable = pcDataActive || [];
     _renderPcActiveTable();
+    await maybeEditApproxMastersRows(targets);
 
     // ── PC master diagnostic log ─────────────────────────────────────
     if (!pcSnap.loaded) {
@@ -912,10 +947,10 @@ async function runLoadMasters(root) {
     // ── Sync CA1-CA10 → ISOPCF CSV → Isometric PCF ──────────────────
     // Re-build the ISOPCF component list (preserves updated CA values via spread)
     const cfg4 = getConfig();
-    rcState.isoPcfComponents = buildIsopcfRows(rcState.components, cfg4);
+    rcState.isoPcfComponents = buildIsopcfRows(targets, cfg4);
     rcState.isoPcfCsvText    = _buildIsoPcfCsvText(rcState.isoPcfComponents);
     // Re-run S4 to regenerate the Isometric PCF text with updated CA1-CA10
-    if (rcState.components.length) {
+    if (targets.length) {
       passLog(root, '↻ Re-generating Isometric PCF with updated CA attributes…', 'info');
       runS4(root).catch(e => passLog(root, `⚠ S4 re-run after Masters: ${e.message}`, 'warn'));
     }
@@ -1013,6 +1048,53 @@ async function runLoadMasters(root) {
     _mastersLog('error', `❌ ${err.message}`);
     switchSubTab(root, 'masterslog');
   }
+}
+
+function _norm(v) {
+  return String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+async function maybeEditApproxMastersRows(components) {
+  const rows = (components || []).filter(c => {
+    const t = c?._mastersMeta?.pipingClassMaster;
+    return t?.matched && (t?.approximate || (t?.rowClass && _norm(t.rowClass) !== _norm(c.pipingClass)));
+  });
+  if (!rows.length) return;
+  await new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem';
+    const panel = document.createElement('div');
+    panel.style.cssText = 'width:min(1100px,95vw);max-height:85vh;overflow:auto;background:var(--bg-1);border:1px solid var(--steel);border-radius:8px;padding:10px;color:var(--text-primary);font-family:var(--font-code)';
+    const header = `<div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:8px\"><b>Approximate Masters Matches (${rows.length})</b><span style=\"font-size:0.75rem;color:var(--text-muted)\">Edit before saving Final 2D CSV</span></div>`;
+    const th = 'padding:4px 6px;border:1px solid var(--steel);background:var(--bg-panel);position:sticky;top:0';
+    const td = 'padding:2px 4px;border:1px solid rgba(255,255,255,0.08)';
+    panel.innerHTML = `${header}<table style=\"width:100%;border-collapse:collapse;font-size:0.72rem\"><thead><tr><th style=\"${th}\">Ref</th><th style=\"${th}\">Piping Class</th><th style=\"${th}\">Matched Class</th><th style=\"${th}\">Rating</th><th style=\"${th}\">CA3</th><th style=\"${th}\">CA4</th><th style=\"${th}\">CA7</th></tr></thead><tbody>${
+      rows.map((r, i) => `<tr>
+        <td style="${td}">${escapeHtml(r.refNo || r.type || '')}</td>
+        <td style="${td}"><input data-i="${i}" data-k="pipingClass" value="${escapeHtml(r.pipingClass || '')}" style="width:160px"></td>
+        <td style="${td}">${escapeHtml(r?._mastersMeta?.pipingClassMaster?.rowClass || '')}</td>
+        <td style="${td}"><input data-i="${i}" data-k="rating" value="${escapeHtml(r.rating || '')}" style="width:90px"></td>
+        <td style="${td}"><input data-i="${i}" data-k="ca3" value="${escapeHtml(r.ca3 || '')}" style="width:90px"></td>
+        <td style="${td}"><input data-i="${i}" data-k="ca4" value="${escapeHtml(r.ca4 || '')}" style="width:90px"></td>
+        <td style="${td}"><input data-i="${i}" data-k="ca7" value="${escapeHtml(r.ca7 || '')}" style="width:90px"></td>
+      </tr>`).join('')
+    }</tbody></table>
+    <div style=\"display:flex;gap:8px;justify-content:flex-end;margin-top:10px\">
+      <button id=\"rc-approx-cancel\" style=\"padding:4px 10px\">Skip</button>
+      <button id=\"rc-approx-apply\" style=\"padding:4px 10px;background:var(--amber);border:none;border-radius:4px\">Apply Edits</button>
+    </div>`;
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+    panel.querySelector('#rc-approx-cancel').onclick = () => { overlay.remove(); resolve(); };
+    panel.querySelector('#rc-approx-apply').onclick = () => {
+      panel.querySelectorAll('input[data-i][data-k]').forEach(inp => {
+        const i = Number(inp.dataset.i); const k = inp.dataset.k;
+        rows[i][k] = inp.value.trim();
+      });
+      overlay.remove();
+      resolve();
+    };
+  });
 }
 
 async function runPipelineLookup(root) {
@@ -1308,7 +1390,7 @@ const EDITABLE_2D_COLS = new Set(['PIPELINE-REFERENCE', 'PIPING CLASS', 'RATING'
   'CA1 (Des Pr.)', 'CA2 (Des Temp.)', 'CA3 (Material)', 'CA4 (Wall Thk.)',
   'CA5 (Ins Thk.)', 'CA6 (Ins Den.)', 'CA7 (Corr. Allow.)', 'CA8 (Comp Wt.)',
   'CA9 (Fluid Den.)', 'CA10 (Hydro Pr.)']);
-const FILL_DOWN_2D_COLS = new Set(['LINENO KEY', 'PIPING CLASS', 'RATING',
+const FILL_DOWN_2D_COLS = new Set(['PIPELINE-REFERENCE', 'LINENO KEY', 'PIPING CLASS', 'RATING',
   'CA1 (Des Pr.)', 'CA2 (Des Temp.)', 'CA3 (Material)', 'CA4 (Wall Thk.)',
   'CA5 (Ins Thk.)', 'CA6 (Ins Den.)', 'CA7 (Corr. Allow.)', 'CA8 (Comp Wt.)',
   'CA9 (Fluid Den.)', 'CA10 (Hydro Pr.)']);
@@ -1650,7 +1732,7 @@ function render2DTable(root, csvText, sourceRows = rcState.components) {
     for (const inp of inputs) {
       const rowIdx = Number(inp.dataset.row);
       if (rowIdx <= sourceRowIdx) continue;
-      if (inp.value.trim()) continue;
+      if (colName !== 'PIPELINE-REFERENCE' && inp.value.trim()) continue;
       inp.value = sourceVal;
       const comp = sourceRows[rowIdx];
       if (comp && fieldMap[colName]) {
@@ -1882,6 +1964,14 @@ function renderIsoPcfTable(root, rows) {
   el.innerHTML = `<table style="border-collapse:collapse"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
 }
 
+function _syncIsoFromLatestComponents() {
+  const base = rcState.finalComponents.length ? rcState.finalComponents : rcState.components;
+  if (!base.length) return [];
+  rcState.isoPcfComponents = buildIsopcfRows(base, getConfig());
+  rcState.isoPcfCsvText = _buildIsoPcfCsvText(rcState.isoPcfComponents);
+  return base;
+}
+
 function switchPreview(root, activeKey) {
   root.querySelectorAll('.rc-preview-btn').forEach(b => {
     const on = b.dataset.preview === activeKey;
@@ -1898,6 +1988,9 @@ function switchPreview(root, activeKey) {
   // Show ISOPCF info button only when ISOPCF CSV tab is active
   const infoBtn = root.querySelector('#rc-btn-isopcf-info');
   if (infoBtn) infoBtn.style.display = activeKey === 'isopcfcsv' ? 'inline-flex' : 'none';
+  if (activeKey === 'isopcfcsv' || activeKey === 'isofinal') {
+    _syncIsoFromLatestComponents();
+  }
   if (activeKey === 'connmap') {
     showConnMapPreview(root, rcState.connectionMatrix);
   } else if (activeKey === '2dcsv') {
@@ -1906,6 +1999,12 @@ function switchPreview(root, activeKey) {
     render2DTable(root, rcState.finalCsv2DText || '(Final 2D CSV not yet generated — run S3/S4 first)', rcState.finalComponents);
   } else if (activeKey === 'isopcfcsv') {
     renderIsoPcfTable(root, rcState.isoPcfComponents);
+  } else if (activeKey === 'isofinal') {
+    if (rcState.finalComponents.length || rcState.components.length) {
+      runS4(root).catch(() => showPreview(root, 'rc-preview-area', rcState.isoMetricPcfText || '(not yet generated)'));
+    } else {
+      showPreview(root, 'rc-preview-area', rcState.isoMetricPcfText || '(not yet generated)');
+    }
   } else if (textMap[activeKey] !== undefined) {
     showPreview(root, 'rc-preview-area', textMap[activeKey] || '(not yet generated)');
   }

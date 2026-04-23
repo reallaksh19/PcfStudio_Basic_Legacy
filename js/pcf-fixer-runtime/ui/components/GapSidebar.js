@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { useStore } from '/js/pcf-fixer-runtime/store/useStore.js';
+import { useStore } from '../../store/useStore.js';
 import * as THREE from 'three';
-import { jsx as _jsx, jsxs as _jsxs } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { jsx as _jsx, jsxs as _jsxs } from "../../jsx-runtime.js";
 export const GapSidebar = () => {
   const showGapRadar = useStore(state => state.showGapRadar);
   const [isCollapsed, setIsCollapsed] = useState(false);

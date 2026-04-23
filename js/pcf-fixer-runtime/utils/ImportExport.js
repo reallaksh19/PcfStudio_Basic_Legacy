@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import ExcelJS from 'exceljs';
-import { validateInputRows } from '/js/pcf-fixer-runtime/utils/ZodSchemas.js';
+import { validateInputRows } from './ZodSchemas.js';
 
 const PCF_TOP_LEVEL_HEADER_PREFIXES = [
   "ISOGEN-FILES",

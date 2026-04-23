@@ -1,5 +1,5 @@
-import { vec } from '/js/pcf-fixer-runtime/math/VectorMath.js';
-import { detectElementAxis } from '/js/pcf-fixer-runtime/engine/AxisDetector.js';
+import { vec } from '../../math/VectorMath.js';
+import { detectElementAxis } from '../AxisDetector.js';
 
 export function runSupportRules(support, chain, context, config, log) {
   const ri = support._rowIndex;

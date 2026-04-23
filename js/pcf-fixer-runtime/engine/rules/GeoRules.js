@@ -1,5 +1,5 @@
-import { vec } from '/js/pcf-fixer-runtime/math/VectorMath.js';
-import { getElementVector } from '/js/pcf-fixer-runtime/engine/AxisDetector.js';
+import { vec } from '../../math/VectorMath.js';
+import { getElementVector } from '../AxisDetector.js';
 
 export function runGeoRules(element, context, prevElement, elemAxis, elemDir, config, log) {
   const type = (element.type || "").toUpperCase();

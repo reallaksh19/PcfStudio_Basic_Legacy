@@ -6,7 +6,7 @@
  * Import these in any engine file with:
  *
  *   // @ts-check
- *   /** @typedef {import('/js/pcf-fixer-runtime/engine/types.js').PcfCoord} PcfCoord *\/
+ *   /** @typedef {import('./types.js').PcfCoord} PcfCoord *\/
  *
  * These types are checked by `tsconfig.json` (checkJs: true) and surfaced
  * as intellisense / inline errors in VS Code without requiring a TypeScript

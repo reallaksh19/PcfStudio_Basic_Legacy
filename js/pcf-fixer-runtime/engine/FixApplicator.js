@@ -1,6 +1,6 @@
-import { vec } from '/js/pcf-fixer-runtime/math/VectorMath.js';
-import { getExitPoint, getEntryPoint } from '/js/pcf-fixer-runtime/engine/GraphBuilder.js';
-import { getElementVector } from '/js/pcf-fixer-runtime/engine/AxisDetector.js';
+import { vec } from '../math/VectorMath.js';
+import { getExitPoint, getEntryPoint } from './GraphBuilder.js';
+import { getElementVector } from './AxisDetector.js';
 
 export function applyFixes(dataTable, chains, config, log) {
   const applied = [];

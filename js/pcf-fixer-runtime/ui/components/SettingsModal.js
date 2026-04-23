@@ -1,6 +1,6 @@
 import React from 'react';
-import { useStore, THEME_PRESETS } from '/js/pcf-fixer-runtime/store/useStore.js';
-import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { useStore, THEME_PRESETS } from '../../store/useStore.js';
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "../../jsx-runtime.js";
 export const SettingsModal = () => {
   const showSettings = useStore(state => state.showSettings);
   const setShowSettings = useStore(state => state.setShowSettings);

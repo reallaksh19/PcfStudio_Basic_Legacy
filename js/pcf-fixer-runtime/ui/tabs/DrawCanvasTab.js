@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useReducer, useMemo } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
-import { useStore } from '/js/pcf-fixer-runtime/store/useStore.js';
-import { useAppContext } from '/js/pcf-fixer-runtime/store/AppContext.js';
-import { drawCanvasReducer, initialState } from '/js/pcf-fixer-runtime/store/drawCanvasReducer.js';
-import { dbg } from '/js/pcf-fixer-runtime/utils/debugGate.js';
-import { emitDrawMetric } from '/js/pcf-fixer-runtime/utils/drawMetrics.js';
+import { useStore } from '../../store/useStore.js';
+import { useAppContext } from '../../store/AppContext.js';
+import { drawCanvasReducer, initialState } from '../../store/drawCanvasReducer.js';
+import { dbg } from '../../utils/debugGate.js';
+import { emitDrawMetric } from '../../utils/drawMetrics.js';
 import { OrbitControls, OrthographicCamera, PerspectiveCamera, GizmoHelper, GizmoViewport, Line, Text } from '@react-three/drei';
 import * as THREE from 'three';
-import { ViewCube } from '/js/pcf-fixer-runtime/ui/components/ViewCube.js';
-import { NavigationPanel } from '/js/pcf-fixer-runtime/ui/components/NavigationPanel.js';
+import { ViewCube } from '../components/ViewCube.js';
+import { NavigationPanel } from '../components/NavigationPanel.js';
 
 // Helper to draw the accumulated user geometry
 const DrawCanvas_DrawnComponents = ({
@@ -686,15 +686,15 @@ const DrawCanvas_DrawTool = ({
     })]
   });
 };
-import { breakPipeAtPoint, insertSupportAtPipe, fix6mmGaps } from '/js/pcf-fixer-runtime/engine/GapFixEngine.js';
-import { autoAssignPipelineRefs } from '/js/pcf-fixer-runtime/engine/TopologyEngine.js';
+import { breakPipeAtPoint, insertSupportAtPipe, fix6mmGaps } from '../../engine/GapFixEngine.js';
+import { autoAssignPipelineRefs } from '../../engine/TopologyEngine.js';
 
 // ═══════════════════════════════════════════════════════════════
 // SHARED TOOL: MEASURE
 // This tool also exists in src/ui/tabs/CanvasTab.jsx.
 // If modifying logic, update BOTH files and run Checkpoint F.
 // ═══════════════════════════════════════════════════════════════
-import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "../../jsx-runtime.js";
 const DrawCanvas_MeasureTool = ({
   activeTool,
   appSettings
@@ -1550,7 +1550,7 @@ export function DrawCanvasTab() {
         }), _jsx("button", {
           onClick: () => {
             if (drawnPipes.length > 0) {
-              import('/js/pcf-fixer-runtime/engine/OverlapSolver.js').then(({
+              import('../../engine/OverlapSolver.js').then(({
                 resolveOverlaps
               }) => {
                 const {
@@ -1831,7 +1831,7 @@ export function DrawCanvasTab() {
           "data-testid": "drawbtn-auto-fittings",
           className: `w-8 h-8 rounded flex items-center justify-center text-purple-400 hover:bg-slate-700 hover:text-white`,
           onClick: () => {
-            import('/js/pcf-fixer-runtime/engine/OverlapSolver.js').then(({
+            import('../../engine/OverlapSolver.js').then(({
               autoFittingSolver
             }) => {
               const {

@@ -76,14 +76,8 @@ async function _runGenerate() {
     setState('viewer3dComponents', _processed.components);
     _status(`✓ ${_processed.components.length} components.`, 'ok');
     // Mount React 3D app then reveal the canvas
-    let mountReactApp;
-    try {
-      const bundleUrl = new URL('../editor/App.bundle.js', import.meta.url).href;
-      ({ mountReactApp } = await import(/* @vite-ignore */ bundleUrl));
-    } catch (bundleError) {
-      console.warn(`${LOG_PREFIX} App.bundle.js import failed, retrying App.jsx`, bundleError);
-      ({ mountReactApp } = await import('../editor/App.jsx'));
-    }
+    const bundleUrl = new URL('../editor/App.bundle.js', import.meta.url).href;
+    const { mountReactApp } = await import(/* @vite-ignore */ bundleUrl);
     try {
       mountReactApp('react-root', { components: _processed.components });
     } catch (renderErr) {

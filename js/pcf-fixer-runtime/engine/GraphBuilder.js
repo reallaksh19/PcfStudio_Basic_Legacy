@@ -1,5 +1,5 @@
-import { vec } from '/js/pcf-fixer-runtime/math/VectorMath.js';
-import { KDTree } from '/js/pcf-fixer-runtime/math/KDTree.js';
+import { vec } from '../math/VectorMath.js';
+import { KDTree } from '../math/KDTree.js';
 
 export function buildConnectivityGraph(dataTable, config) {
   const tolerance = Number(config?.smartFixer?.connectionTolerance ?? 25.0);

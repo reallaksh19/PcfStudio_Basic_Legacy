@@ -1,8 +1,8 @@
 import React, { useRef } from 'react';
-import { useAppContext } from '/js/pcf-fixer-runtime/store/AppContext.js';
-import { parsePCF } from '/js/pcf-fixer-runtime/utils/ImportExport.js';
-import { useStore } from '/js/pcf-fixer-runtime/store/useStore.js';
-import { jsx as _jsx, jsxs as _jsxs } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { useAppContext } from '../../store/AppContext.js';
+import { parsePCF } from '../../utils/ImportExport.js';
+import { useStore } from '../../store/useStore.js';
+import { jsx as _jsx, jsxs as _jsxs } from "../../jsx-runtime.js";
 export function Header() {
   const {
     state,

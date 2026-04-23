@@ -1,6 +1,6 @@
 import React from 'react';
-import { useStore } from '/js/pcf-fixer-runtime/store/useStore.js';
-import { jsx as _jsx, jsxs as _jsxs } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { useStore } from '../../store/useStore.js';
+import { jsx as _jsx, jsxs as _jsxs } from "../../jsx-runtime.js";
 export const NavigationPanel = ({
   customEventName = 'canvas-set-view',
   interactionMode: controlledInteractionMode,

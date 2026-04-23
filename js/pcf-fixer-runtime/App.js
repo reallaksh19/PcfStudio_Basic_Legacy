@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { StatusBar } from '/js/pcf-fixer-runtime/ui/components/StatusBar.js';
-import { DataTableTab } from '/js/pcf-fixer-runtime/ui/tabs/DataTableTab.js';
-import { CoreProcessorTab } from '/js/pcf-fixer-runtime/ui/tabs/CoreProcessorTab.js';
-import { ConfigTab } from '/js/pcf-fixer-runtime/ui/tabs/ConfigTab.js';
-import { OutputTab } from '/js/pcf-fixer-runtime/ui/tabs/OutputTab.js';
-import { CanvasTab } from '/js/pcf-fixer-runtime/ui/tabs/CanvasTab.js';
-import { DrawCanvasTab } from '/js/pcf-fixer-runtime/ui/tabs/DrawCanvasTab.js';
-import { AppProvider, useAppContext } from '/js/pcf-fixer-runtime/store/AppContext.js';
-import { useStore } from '/js/pcf-fixer-runtime/store/useStore.js';
-import { jsx as _jsx, jsxs as _jsxs } from "/js/pcf-fixer-runtime/jsx-runtime.js";
+import { StatusBar } from './ui/components/StatusBar.js';
+import { DataTableTab } from './ui/tabs/DataTableTab.js';
+import { CoreProcessorTab } from './ui/tabs/CoreProcessorTab.js';
+import { ConfigTab } from './ui/tabs/ConfigTab.js';
+import { OutputTab } from './ui/tabs/OutputTab.js';
+import { CanvasTab } from './ui/tabs/CanvasTab.js';
+import { DrawCanvasTab } from './ui/tabs/DrawCanvasTab.js';
+import { AppProvider, useAppContext } from './store/AppContext.js';
+import { useStore } from './store/useStore.js';
+import { jsx as _jsx, jsxs as _jsxs } from "./jsx-runtime.js";
 function MainApp() {
   const [activeTab, setActiveTab] = useState('data');
   const [activeStage, setActiveStage] = useState('1');

@@ -6,6 +6,7 @@
  * immediately after their originating component, matching legacy Stage 4.
  * Phase 3C adds support-on-bridge split parity: supports located on a bridge
  * split the bridge into pipe segments and are emitted inline.
+ * Phase 3D aligns message-square/formatting behavior with legacy Stage 4.
  */
 
 import { emitCABlock } from './pcf-block-schema.js';
@@ -87,8 +88,9 @@ function emitBend(block, seq, cfg) {
   const refNo = refFor(block), lines = [];
   lines.push(...emitMsgSq(['BEND', refNo ? `RefNo:=${refNo}` : '', `SeqNo:${seq}`], cfg));
   lines.push('BEND', `${INDENT}END-POINT    ${fmtCoord(block.ep1, block.bore, cfg)}`, `${INDENT}END-POINT    ${fmtCoord(block.ep2, block.bore, cfg)}`, `${INDENT}CENTRE-POINT  ${fmtCoord(block.cp, block.bore, cfg)}`);
-  lines.push(...emitSkey(block), `${INDENT}ANGLE ${fmtNum(block.angleDeg ?? 90, cfg)}`);
-  if (block.radius || block.bendRadius) lines.push(`${INDENT}BEND-RADIUS ${fmtNum(block.radius || block.bendRadius, cfg)}`);
+  lines.push(...emitSkey(block));
+  // Legacy parity: Stage 4 emits ANGLE 90.0000 only when radius exists and does not emit BEND-RADIUS.
+  if (block.radius || block.bendRadius) lines.push(`${INDENT}ANGLE ${fmtNum(90, cfg)}`);
   lines.push(...emitCA(block, 'BEND', seq), '');
   return lines;
 }
@@ -129,7 +131,8 @@ function emitSupport(block, seq, cfg) {
   const rawGuid = cleanText(block.supportGuid);
   const guidOut = rawGuid ? (rawGuid.startsWith('UCI:') ? rawGuid : `UCI:${rawGuid}`) : '';
   const lines = [];
-  lines.push(...emitMsgSq(['SUPPORT', `RefNo:=${refFor(block)}`, `SeqNo:${seq}`, supportName, guidOut], cfg));
+  lines.push('MESSAGE-SQUARE');
+  lines.push(`${INDENT}SUPPORT, RefNo:=${refFor(block)}, SeqNo:${seq}, ${supportName}, ${guidOut}`);
   lines.push('SUPPORT');
   if (block.supportCoor) lines.push(`${INDENT}CO-ORDS    ${fmtCoord(block.supportCoor, 0, cfg)}`);
   else lines.push(`${INDENT}CO-ORDS    ${cleanText(cfg?.supportDefaultCoor || supportName)}`);
@@ -188,7 +191,7 @@ function supportsOnBridge(bridge, supportBlocks, cfg) {
 }
 function shouldSkipOriginalPipe(block, model) { return block?.type === 'PIPE' && Array.isArray(model?.bridgeBlocks) && model.bridgeBlocks.length > 0; }
 export function emitPcfModel(model, cfg = {}) {
-  const eol = cfg?.windowsLineEndings === false ? '\n' : '\r\n';
+  const eol = cfg?.windowsLineEndings ? '\r\n' : '\n';
   const lines = buildHeader(model, cfg);
   const emittedBlocks = [];
   const bridgeGroups = buildBridgeGroups(model);
@@ -245,7 +248,6 @@ export function emitPcfModel(model, cfg = {}) {
     pushBlock(block);
     pushBridgesFrom(block.refNo || block.source?.originalRefNo);
   }
-  // Safety net for bridges whose fromRefNo was not found in component list.
   for (const bridge of model?.bridgeBlocks || []) {
     if (emittedBridgeIds.has(bridge.id)) continue;
     emittedBridgeIds.add(bridge.id);
@@ -261,6 +263,7 @@ export function emitPcfModel(model, cfg = {}) {
       blockCount: emittedBlocks.length,
       bridgeOrdering: 'legacy-origin-after-component',
       supportBridgeSplit: 'legacy-inline-projection',
+      formattingParity: 'legacy-stage4-v1',
       splitBridgeCount,
       inlineSupportCount,
     }

@@ -4,6 +4,8 @@
  * Converts canonical Common PCF model blocks into PCF text.
  * Phase 3B adds bridge ordering parity: bridge PIPE blocks are emitted
  * immediately after their originating component, matching legacy Stage 4.
+ * Phase 3C adds support-on-bridge split parity: supports located on a bridge
+ * split the bridge into pipe segments and are emitted inline.
  */
 
 import { emitCABlock } from './pcf-block-schema.js';
@@ -35,6 +37,8 @@ function caFor(block) {
   return ca;
 }
 function refFor(block, fallback = '') { return cleanText(block?.refNo || block?.source?.originalRefNo || fallback); }
+function vecSub(a, b) { return { x: n(a?.x) - n(b?.x), y: n(a?.y) - n(b?.y), z: n(a?.z) - n(b?.z) }; }
+function vecMag(v) { return Math.sqrt(n(v?.x) * n(v?.x) + n(v?.y) * n(v?.y) + n(v?.z) * n(v?.z)); }
 function lengthAxis(ep1, ep2, cfg) {
   if (!ep1 || !ep2) return {};
   const dx = n(ep2.x) - n(ep1.x), dy = n(ep2.y) - n(ep1.y), dz = n(ep2.z) - n(ep1.z);
@@ -149,9 +153,8 @@ function emitBlock(block, seq, model, cfg) {
     default: return [];
   }
 }
-function bridgeOriginKey(block) {
-  return cleanText(block?.source?.fromRefNo || block?.fromRefNo || '');
-}
+function blockKey(block) { return cleanText(block?.refNo || block?.id || ''); }
+function bridgeOriginKey(block) { return cleanText(block?.source?.fromRefNo || block?.fromRefNo || ''); }
 function buildBridgeGroups(model) {
   const groups = new Map();
   for (const bridge of model?.bridgeBlocks || []) {
@@ -161,31 +164,81 @@ function buildBridgeGroups(model) {
   }
   return groups;
 }
-function shouldSkipOriginalPipe(block, model) {
-  return block?.type === 'PIPE' && Array.isArray(model?.bridgeBlocks) && model.bridgeBlocks.length > 0;
+function supportPoint(block) { return block?.supportCoor || block?.cp || null; }
+function supportsOnBridge(bridge, supportBlocks, cfg) {
+  if (!bridge?.ep1 || !bridge?.ep2) return [];
+  const seg = vecSub(bridge.ep2, bridge.ep1);
+  const segLen = vecMag(seg);
+  if (segLen < 1e-6) return [];
+  const sd = { x: seg.x / segLen, y: seg.y / segLen, z: seg.z / segLen };
+  const tol = Math.max((bridge.bore || 0) * (cfg?.boreTolMultiplier || 0.5), (cfg?.minBoreTol || 25), 1000);
+  const hits = [];
+  for (const sp of supportBlocks || []) {
+    const pt = supportPoint(sp);
+    if (!pt) continue;
+    const tv = vecSub(pt, bridge.ep1);
+    const t = tv.x * sd.x + tv.y * sd.y + tv.z * sd.z;
+    if (t <= 0 || t >= segLen) continue;
+    const snap = { x: bridge.ep1.x + sd.x * t, y: bridge.ep1.y + sd.y * t, z: bridge.ep1.z + sd.z * t };
+    const perpDist = vecMag(vecSub(pt, snap));
+    if (perpDist <= tol) hits.push({ comp: sp, t, snap });
+  }
+  hits.sort((a, b) => a.t - b.t);
+  return hits;
 }
+function shouldSkipOriginalPipe(block, model) { return block?.type === 'PIPE' && Array.isArray(model?.bridgeBlocks) && model.bridgeBlocks.length > 0; }
 export function emitPcfModel(model, cfg = {}) {
   const eol = cfg?.windowsLineEndings === false ? '\n' : '\r\n';
   const lines = buildHeader(model, cfg);
   const emittedBlocks = [];
   const bridgeGroups = buildBridgeGroups(model);
   const emittedBridgeIds = new Set();
+  const inlineSupportKeys = new Set();
+  const supportBlocks = (model?.componentBlocks || []).filter(b => b.type === 'SUPPORT');
+  let splitBridgeCount = 0;
+  let inlineSupportCount = 0;
   let seq = 0;
-  const pushBlock = (block) => {
+  const pushBlock = (block, options = {}) => {
+    if (!options.force && block?.type === 'SUPPORT' && inlineSupportKeys.has(blockKey(block))) return;
     if (shouldSkipOriginalPipe(block, model)) return;
     const previewLines = emitBlock(block, seq + 1, model, cfg);
     if (!previewLines.length) return;
     seq += 1;
     block.emitSeq = seq;
     lines.push(...emitBlock(block, seq, model, cfg));
-    emittedBlocks.push({ id: block.id, type: block.type, rawType: block.rawType, refNo: block.refNo, seqNo: seq, sourceKind: block.sourceKind });
+    emittedBlocks.push({ id: block.id, type: block.type, rawType: block.rawType, refNo: block.refNo, seqNo: seq, sourceKind: block.sourceKind, splitKind: block.splitKind || '' });
+  };
+  const pushBridgeSplit = (bridge, originRefNo) => {
+    const originRef = cleanText(originRefNo || bridgeOriginKey(bridge));
+    const ep1RefNo = originRef ? `${originRef}_bridged` : '';
+    const hits = supportsOnBridge(bridge, supportBlocks, cfg);
+    if (!hits.length) {
+      pushBlock({ ...bridge, refNo: ep1RefNo, splitKind: 'bridge-unsplit' }, { force: true });
+      return;
+    }
+    splitBridgeCount += 1;
+    let cursor = bridge.ep1;
+    let idx = 0;
+    for (const hit of hits) {
+      idx += 1;
+      const supportRef = cleanText(hit.comp.refNo || hit.comp.source?.originalRefNo || `SUPPORT_${idx}`);
+      const segRefNo = `${supportRef}_bridged`;
+      pushBlock({ ...bridge, id: `${bridge.id}:split:${idx}`, ep1: cursor, ep2: hit.snap, refNo: segRefNo, splitKind: 'bridge-to-support' }, { force: true });
+      const supportKey = blockKey(hit.comp);
+      inlineSupportKeys.add(supportKey);
+      inlineSupportCount += 1;
+      pushBlock({ ...hit.comp, supportCoor: hit.snap, splitKind: 'inline-bridge-support' }, { force: true });
+      cursor = hit.snap;
+    }
+    pushBlock({ ...bridge, id: `${bridge.id}:tail`, ep1: cursor, ep2: bridge.ep2, refNo: ep1RefNo, splitKind: 'bridge-tail' }, { force: true });
   };
   const pushBridgesFrom = (refNo) => {
-    const list = bridgeGroups.get(cleanText(refNo)) || [];
+    const key = cleanText(refNo);
+    const list = bridgeGroups.get(key) || [];
     for (const bridge of list) {
       if (emittedBridgeIds.has(bridge.id)) continue;
       emittedBridgeIds.add(bridge.id);
-      pushBlock(bridge);
+      pushBridgeSplit(bridge, key);
     }
   };
   for (const block of model?.componentBlocks || []) {
@@ -196,7 +249,20 @@ export function emitPcfModel(model, cfg = {}) {
   for (const bridge of model?.bridgeBlocks || []) {
     if (emittedBridgeIds.has(bridge.id)) continue;
     emittedBridgeIds.add(bridge.id);
-    pushBlock(bridge);
+    pushBridgeSplit(bridge, bridgeOriginKey(bridge));
   }
-  return { pcfText: lines.join(eol), emittedBlocks, meta: { engine: 'common', emittedBy: 'pcf-model-emitter', lineCount: lines.length, blockCount: emittedBlocks.length, bridgeOrdering: 'legacy-origin-after-component' } };
+  return {
+    pcfText: lines.join(eol),
+    emittedBlocks,
+    meta: {
+      engine: 'common',
+      emittedBy: 'pcf-model-emitter',
+      lineCount: lines.length,
+      blockCount: emittedBlocks.length,
+      bridgeOrdering: 'legacy-origin-after-component',
+      supportBridgeSplit: 'legacy-inline-projection',
+      splitBridgeCount,
+      inlineSupportCount,
+    }
+  };
 }

@@ -3,7 +3,8 @@
  *
  * Purpose:
  *   Build a canonical model, run common diagnostics, emit PCF using the Common
- *   model emitter, and optionally diff against legacy output.
+ *   model emitter, optionally diff against legacy output, and evaluate the
+ *   Phase 3E production certification gate.
  *
  * Contract:
  *   buildCommonPcf({ components, injectedPipes, pipelineRef, cfg, logFn, legacyEmitter })
@@ -13,8 +14,9 @@
 import { runSyntaxCheck } from './syntax-checker.js';
 import { emitPcfModel } from './pcf-model-emitter.js';
 import { diffPcfOutputs } from './pcf-output-diff.js';
+import { evaluatePcfDiffGate } from './pcf-diff-gate.js';
 
-const COMMON_BUILDER_VERSION = 'phase2.0.0';
+const COMMON_BUILDER_VERSION = 'phase3.0.0';
 
 const EMIT_TYPES = new Set(['PIPE','FLANGE','FBLI','BEND','TEE','OLET','VALVE','REDU','REDUCER-CONCENTRIC','REDUCER-ECCENTRIC','SUPPORT']);
 const SKIP_TYPES = new Set(['GASK', 'PCOM', 'MISC', 'WELD', 'ATTA', 'INST']);
@@ -83,6 +85,15 @@ function preflightModel(model) {
 }
 function checkerComponents(model) { return model.blocks.filter(b => !b.skipReason && b.emitEligible).map(b => ({ ...b, type: blockTypeForDiagnostics(b), ca: b.ca, refNo: b.refNo, seqNo: b.seqNo })); }
 function mergeDiagnostics(preflight, syntax) { return { errors: [...(preflight.errors || []), ...(syntax.errors || [])], warnings: [...(preflight.warnings || []), ...(syntax.warnings || [])], infos: [...(preflight.infos || []), ...(syntax.infos || [])] }; }
+function gateOptionsFromConfig(cfg = {}) {
+  return {
+    maxCritical: cfg.commonBuilderGateMaxCritical ?? 0,
+    maxMajor: cfg.commonBuilderGateMaxMajor ?? 0,
+    maxMinor: cfg.commonBuilderGateMaxMinor ?? Infinity,
+    requireLegacyCommonDiff: cfg.commonBuilderRunLegacyDiff !== false,
+    requireCommonBlocks: true,
+  };
+}
 export function buildCommonPcf({ components = [], injectedPipes = [], pipelineRef = '', cfg = {}, logFn = () => {}, legacyEmitter = null } = {}) {
   const startedAt = Date.now();
   const model = makeModel({ components, injectedPipes, pipelineRef, cfg });
@@ -103,9 +114,11 @@ export function buildCommonPcf({ components = [], injectedPipes = [], pipelineRe
       diff = { pass: false, summary: { legacyBlockCount: 0, commonBlockCount: emitResult.meta.blockCount, total: 1, critical: 1, major: 0, minor: 0 }, diffs: [{ severity: 'critical', path: 'legacyEmitter', legacy: '', common: '', message: err?.message || String(err) }] };
     }
   }
-  const meta = { engine: 'common', phase: 'phase2-common-model-emitter', builderVersion: COMMON_BUILDER_VERSION, emittedBy: 'pcf-model-emitter', startedAt, finishedAt: Date.now(), lineCount: pcfText ? pcfText.split(/\r?\n/).length : 0, blockCount: emitResult.meta.blockCount, diagnostics: { errors: diagnostics.errors.length, warnings: diagnostics.warnings.length, infos: diagnostics.infos.length }, diffSummary: diff?.summary || null, diffPass: diff?.pass ?? null, summary: model.summary };
-  try { window.__COMMON_PCF_BUILDER_LAST_RUN__ = { meta, model, diagnostics, legacyText, commonText: pcfText, diff }; } catch (_) {}
+  const gate = evaluatePcfDiffGate(diff, gateOptionsFromConfig(cfg));
+  const meta = { engine: 'common', phase: 'phase3-common-model-emitter-gated', builderVersion: COMMON_BUILDER_VERSION, emittedBy: 'pcf-model-emitter', startedAt, finishedAt: Date.now(), lineCount: pcfText ? pcfText.split(/\r?\n/).length : 0, blockCount: emitResult.meta.blockCount, diagnostics: { errors: diagnostics.errors.length, warnings: diagnostics.warnings.length, infos: diagnostics.infos.length }, diffSummary: diff?.summary || null, diffPass: diff?.pass ?? null, gate, gatePass: gate.pass, gateStatus: gate.status, summary: model.summary };
+  try { window.__COMMON_PCF_BUILDER_LAST_RUN__ = { meta, model, diagnostics, legacyText, commonText: pcfText, diff, gate, emitResult }; } catch (_) {}
   logFn('S4', 'common-builder-emitted', '', meta);
-  return { pcfText, model, diagnostics, emitResult, legacyText, diff, meta };
+  logFn('S4', 'common-builder-gate', '', { status: gate.status, summary: gate.summary, reasons: gate.reasons });
+  return { pcfText, model, diagnostics, emitResult, legacyText, diff, gate, meta };
 }
 export function normalizeToPcfModel(args = {}) { return makeModel(args); }

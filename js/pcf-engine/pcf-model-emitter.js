@@ -1,7 +1,9 @@
 /**
- * pcf-model-emitter.js — Common PCF Builder Phase 2
+ * pcf-model-emitter.js — Common PCF Builder Phase 2/3
  *
  * Converts canonical Common PCF model blocks into PCF text.
+ * Phase 3B adds bridge ordering parity: bridge PIPE blocks are emitted
+ * immediately after their originating component, matching legacy Stage 4.
  */
 
 import { emitCABlock } from './pcf-block-schema.js';
@@ -13,48 +15,29 @@ function n(value, fallback = 0) {
   const x = Number(value);
   return Number.isFinite(x) ? x : fallback;
 }
-
-function cleanText(value) {
-  return String(value ?? '').replace(/=/g, '').trim();
-}
-
-function p(cfg) {
-  return Number.isInteger(cfg?.decimalPrecision) ? cfg.decimalPrecision : 4;
-}
-
-function fmtNum(value, cfg) {
-  return n(value, 0).toFixed(p(cfg));
-}
-
+function cleanText(value) { return String(value ?? '').replace(/=/g, '').trim(); }
+function p(cfg) { return Number.isInteger(cfg?.decimalPrecision) ? cfg.decimalPrecision : 4; }
+function fmtNum(value, cfg) { return n(value, 0).toFixed(p(cfg)); }
 function fmtCoord(pt, bore, cfg) {
   return `${fmtNum(pt?.x, cfg)} ${fmtNum(pt?.y, cfg)} ${fmtNum(pt?.z, cfg)} ${fmtNum(bore, cfg)}`;
 }
-
 function emitMsgSq(parts, cfg) {
   if (cfg?.messageSquareEnabled === false) return [];
   return ['MESSAGE-SQUARE', `${INDENT}${parts.filter(Boolean).join(', ')}`];
 }
-
 function emitSkey(block, fallback = '') {
   const skey = cleanText(block?.skey || fallback);
   return skey ? [`${INDENT}<SKEY> ${skey}`] : [];
 }
-
 function caFor(block) {
   const ca = { ...(block?.ca || {}) };
   if (block?.weight != null && block.weight !== '' && !ca['8']) ca['8'] = String(block.weight);
   return ca;
 }
-
-function refFor(block, fallback = '') {
-  return cleanText(block?.refNo || block?.source?.originalRefNo || fallback);
-}
-
+function refFor(block, fallback = '') { return cleanText(block?.refNo || block?.source?.originalRefNo || fallback); }
 function lengthAxis(ep1, ep2, cfg) {
   if (!ep1 || !ep2) return {};
-  const dx = n(ep2.x) - n(ep1.x);
-  const dy = n(ep2.y) - n(ep1.y);
-  const dz = n(ep2.z) - n(ep1.z);
+  const dx = n(ep2.x) - n(ep1.x), dy = n(ep2.y) - n(ep1.y), dz = n(ep2.z) - n(ep1.z);
   const axis = (delta, pos, neg) => Math.abs(delta) < 1e-6 ? '' : (delta > 0 ? pos : neg);
   return {
     len1: Math.abs(dx) > 1e-6 ? fmtNum(dx, cfg) : '', axis1: axis(dx, 'EAST', 'WEST'),
@@ -62,16 +45,10 @@ function lengthAxis(ep1, ep2, cfg) {
     len3: Math.abs(dz) > 1e-6 ? fmtNum(dz, cfg) : '', axis3: axis(dz, 'UP', 'DOWN'),
   };
 }
-
 function primaryLengthText(block, cfg) {
   const la = lengthAxis(block.ep1, block.ep2, cfg);
-  return [
-    la.len1 ? `${la.len1}MM ${la.axis1}` : '',
-    la.len2 ? `${la.len2}MM ${la.axis2}` : '',
-    la.len3 ? `${la.len3}MM ${la.axis3}` : '',
-  ].filter(Boolean).join(' + ');
+  return [la.len1 ? `${la.len1}MM ${la.axis1}` : '', la.len2 ? `${la.len2}MM ${la.axis2}` : '', la.len3 ? `${la.len3}MM ${la.axis3}` : ''].filter(Boolean).join(' + ');
 }
-
 function firstLengthText(block, cfg) {
   const la = lengthAxis(block.ep1, block.ep2, cfg);
   if (la.len1) return `${la.len1}MM ${la.axis1}`;
@@ -79,137 +56,70 @@ function firstLengthText(block, cfg) {
   if (la.len3) return `${la.len3}MM ${la.axis3}`;
   return '';
 }
-
 function buildHeader(model) {
   const pipelineRef = cleanText(model?.pipelineRef || '');
-  return [
-    'ISOGEN-FILES ISOGEN.FLS',
-    'UNITS-BORE MM',
-    'UNITS-CO-ORDS MM',
-    'UNITS-WEIGHT KGS',
-    'UNITS-BOLT-DIA MM',
-    'UNITS-BOLT-LENGTH MM',
-    `PIPELINE-REFERENCE ${pipelineRef}`,
-    `${INDENT}PROJECT-IDENTIFIER P1`,
-    `${INDENT}AREA A1`,
-    ''
-  ];
+  return ['ISOGEN-FILES ISOGEN.FLS','UNITS-BORE MM','UNITS-CO-ORDS MM','UNITS-WEIGHT KGS','UNITS-BOLT-DIA MM','UNITS-BOLT-LENGTH MM',`PIPELINE-REFERENCE ${pipelineRef}`,`${INDENT}PROJECT-IDENTIFIER P1`,`${INDENT}AREA A1`,''];
 }
-
-function emitCA(block, blockType, seq) {
-  return emitCABlock(caFor(block), blockType, refFor(block), seq);
-}
-
+function emitCA(block, blockType, seq) { return emitCABlock(caFor(block), blockType, refFor(block), String(seq)); }
 function emitPipe(block, seq, model, cfg) {
   if (!block.ep1 || !block.ep2) return [];
-  const refNo = refFor(block);
-  const lenText = primaryLengthText(block, cfg);
-  const lines = [];
+  const refNo = refFor(block), lenText = primaryLengthText(block, cfg), lines = [];
   lines.push(...emitMsgSq(['PIPE', refNo ? `RefNo:=${refNo}` : '', lenText ? `LENGTH=${lenText}` : '', `SeqNo:${seq}`], cfg));
-  lines.push('PIPE');
-  lines.push(`${INDENT}END-POINT    ${fmtCoord(block.ep1, block.bore, cfg)}`);
-  lines.push(`${INDENT}END-POINT    ${fmtCoord(block.ep2, block.bore, cfg)}`);
+  lines.push('PIPE', `${INDENT}END-POINT    ${fmtCoord(block.ep1, block.bore, cfg)}`, `${INDENT}END-POINT    ${fmtCoord(block.ep2, block.bore, cfg)}`);
   if (model?.pipelineRef) lines.push(`${INDENT}PIPELINE-REFERENCE ${cleanText(model.pipelineRef)}`);
-  lines.push(...emitSkey(block));
-  lines.push(...emitCA(block, 'PIPE', seq));
-  lines.push('');
+  lines.push(...emitSkey(block), ...emitCA(block, 'PIPE', seq), '');
   return lines;
 }
-
 function emitFlange(block, seq, cfg) {
   if (!block.ep1 || !block.ep2) return [];
-  const refNo = refFor(block);
-  const lenText = firstLengthText(block, cfg);
-  const lines = [];
+  const refNo = refFor(block), lenText = firstLengthText(block, cfg), lines = [];
   lines.push(...emitMsgSq(['FLANGE', lenText ? `LENGTH=${lenText}` : '', refNo ? `RefNo:=${refNo}` : '', `SeqNo:${seq}`], cfg));
-  lines.push('FLANGE');
-  lines.push(`${INDENT}END-POINT    ${fmtCoord(block.ep1, block.bore, cfg)}`);
-  lines.push(`${INDENT}END-POINT    ${fmtCoord(block.ep2, block.bore, cfg)}`);
-  lines.push(...emitSkey(block, block.rawType === 'FBLI' ? 'BLFL' : ''));
-  lines.push(...emitCA(block, 'FLANGE', seq));
-  lines.push('');
+  lines.push('FLANGE', `${INDENT}END-POINT    ${fmtCoord(block.ep1, block.bore, cfg)}`, `${INDENT}END-POINT    ${fmtCoord(block.ep2, block.bore, cfg)}`);
+  lines.push(...emitSkey(block, block.rawType === 'FBLI' ? 'BLFL' : ''), ...emitCA(block, 'FLANGE', seq), '');
   return lines;
 }
-
 function emitBend(block, seq, cfg) {
   if (!block.ep1 || !block.ep2 || !block.cp) return [];
-  const refNo = refFor(block);
-  const lines = [];
+  const refNo = refFor(block), lines = [];
   lines.push(...emitMsgSq(['BEND', refNo ? `RefNo:=${refNo}` : '', `SeqNo:${seq}`], cfg));
-  lines.push('BEND');
-  lines.push(`${INDENT}END-POINT    ${fmtCoord(block.ep1, block.bore, cfg)}`);
-  lines.push(`${INDENT}END-POINT    ${fmtCoord(block.ep2, block.bore, cfg)}`);
-  lines.push(`${INDENT}CENTRE-POINT  ${fmtCoord(block.cp, block.bore, cfg)}`);
-  lines.push(...emitSkey(block));
-  lines.push(`${INDENT}ANGLE ${fmtNum(block.angleDeg ?? 90, cfg)}`);
+  lines.push('BEND', `${INDENT}END-POINT    ${fmtCoord(block.ep1, block.bore, cfg)}`, `${INDENT}END-POINT    ${fmtCoord(block.ep2, block.bore, cfg)}`, `${INDENT}CENTRE-POINT  ${fmtCoord(block.cp, block.bore, cfg)}`);
+  lines.push(...emitSkey(block), `${INDENT}ANGLE ${fmtNum(block.angleDeg ?? 90, cfg)}`);
   if (block.radius || block.bendRadius) lines.push(`${INDENT}BEND-RADIUS ${fmtNum(block.radius || block.bendRadius, cfg)}`);
-  lines.push(...emitCA(block, 'BEND', seq));
-  lines.push('');
+  lines.push(...emitCA(block, 'BEND', seq), '');
   return lines;
 }
-
 function emitTee(block, seq, cfg) {
   if (!block.ep1 || !block.ep2 || !block.cp || !block.bp) return [];
-  const refNo = refFor(block);
-  const brlen = block.brlen ?? block.branchLength ?? '';
-  const lines = [];
+  const refNo = refFor(block), brlen = block.brlen ?? block.branchLength ?? '', lines = [];
   lines.push(...emitMsgSq(['TEE', brlen !== '' ? `LENGTH=${brlen}MM` : '', refNo ? `RefNo:=${refNo}` : '', `SeqNo:${seq}`, brlen !== '' ? `BrLen=${brlen}MM` : ''], cfg));
-  lines.push('TEE');
-  lines.push(`${INDENT}END-POINT    ${fmtCoord(block.ep1, block.bore, cfg)}`);
-  lines.push(`${INDENT}END-POINT    ${fmtCoord(block.ep2, block.bore, cfg)}`);
-  lines.push(`${INDENT}CENTRE-POINT  ${fmtCoord(block.cp, block.bore, cfg)}`);
-  lines.push(`${INDENT}BRANCH1-POINT ${fmtCoord(block.bp, block.branchBore || block.bore, cfg)}`);
-  lines.push(...emitSkey(block));
-  lines.push(...emitCA(block, 'TEE', seq));
-  lines.push('');
+  lines.push('TEE', `${INDENT}END-POINT    ${fmtCoord(block.ep1, block.bore, cfg)}`, `${INDENT}END-POINT    ${fmtCoord(block.ep2, block.bore, cfg)}`, `${INDENT}CENTRE-POINT  ${fmtCoord(block.cp, block.bore, cfg)}`, `${INDENT}BRANCH1-POINT ${fmtCoord(block.bp, block.branchBore || block.bore, cfg)}`);
+  lines.push(...emitSkey(block), ...emitCA(block, 'TEE', seq), '');
   return lines;
 }
-
 function emitOlet(block, seq, cfg) {
   if (!block.cp || !block.bp) return [];
-  const refNo = refFor(block);
-  const brlen = block.brlen ?? block.branchLength ?? '';
-  const lines = [];
+  const refNo = refFor(block), brlen = block.brlen ?? block.branchLength ?? '', lines = [];
   lines.push(...emitMsgSq(['OLET', brlen !== '' ? `BrLen=${brlen}MM` : '', refNo ? `RefNo:=${refNo}` : '', `SeqNo:${seq}`], cfg));
-  lines.push('OLET');
-  lines.push(`${INDENT}CENTRE-POINT  ${fmtCoord(block.cp, block.bore, cfg)}`);
-  lines.push(`${INDENT}BRANCH1-POINT ${fmtCoord(block.bp, block.branchBore || 50, cfg)}`);
-  lines.push(...emitSkey(block));
-  lines.push(...emitCA(block, 'OLET', seq));
-  lines.push('');
+  lines.push('OLET', `${INDENT}CENTRE-POINT  ${fmtCoord(block.cp, block.bore, cfg)}`, `${INDENT}BRANCH1-POINT ${fmtCoord(block.bp, block.branchBore || 50, cfg)}`);
+  lines.push(...emitSkey(block), ...emitCA(block, 'OLET', seq), '');
   return lines;
 }
-
 function emitValve(block, seq, cfg) {
   if (!block.ep1 || !block.ep2) return [];
-  const refNo = refFor(block);
-  const lenText = firstLengthText(block, cfg);
-  const lines = [];
+  const refNo = refFor(block), lenText = firstLengthText(block, cfg), lines = [];
   lines.push(...emitMsgSq(['VALVE', lenText ? `LENGTH=${lenText}` : '', refNo ? `RefNo:=${refNo}` : '', `SeqNo:${seq}`], cfg));
-  lines.push('VALVE');
-  lines.push(`${INDENT}END-POINT    ${fmtCoord(block.ep1, block.bore, cfg)}`);
-  lines.push(`${INDENT}END-POINT    ${fmtCoord(block.ep2, block.bore, cfg)}`);
-  lines.push(...emitSkey(block));
-  lines.push(...emitCA(block, 'VALVE', seq));
-  lines.push('');
+  lines.push('VALVE', `${INDENT}END-POINT    ${fmtCoord(block.ep1, block.bore, cfg)}`, `${INDENT}END-POINT    ${fmtCoord(block.ep2, block.bore, cfg)}`);
+  lines.push(...emitSkey(block), ...emitCA(block, 'VALVE', seq), '');
   return lines;
 }
-
 function emitReducer(block, seq, cfg) {
   if (!block.ep1 || !block.ep2) return [];
-  const refNo = refFor(block);
-  const lenText = firstLengthText(block, cfg);
-  const lines = [];
+  const refNo = refFor(block), lenText = firstLengthText(block, cfg), lines = [];
   lines.push(...emitMsgSq([block.type, lenText ? `LENGTH=${lenText}` : '', refNo ? `RefNo:=${refNo}` : '', `SeqNo:${seq}`], cfg));
-  lines.push(block.type);
-  lines.push(`${INDENT}END-POINT    ${fmtCoord(block.ep1, block.bore, cfg)}`);
-  lines.push(`${INDENT}END-POINT    ${fmtCoord(block.ep2, block.branchBore || block.bore, cfg)}`);
-  lines.push(...emitSkey(block, block.type === 'REDUCER-ECCENTRIC' ? 'REBW' : 'RCBW'));
-  lines.push(...emitCA(block, block.type, seq));
-  lines.push('');
+  lines.push(block.type, `${INDENT}END-POINT    ${fmtCoord(block.ep1, block.bore, cfg)}`, `${INDENT}END-POINT    ${fmtCoord(block.ep2, block.branchBore || block.bore, cfg)}`);
+  lines.push(...emitSkey(block, block.type === 'REDUCER-ECCENTRIC' ? 'REBW' : 'RCBW'), ...emitCA(block, block.type, seq), '');
   return lines;
 }
-
 function emitSupport(block, seq, cfg) {
   const supportName = cleanText(block.supportName) || cleanText(cfg?.supportMapping?.fallbackName) || cleanText(cfg?.supportDefaultCoor) || 'CA150';
   const rawGuid = cleanText(block.supportGuid);
@@ -224,10 +134,8 @@ function emitSupport(block, seq, cfg) {
   lines.push('');
   return lines;
 }
-
 function emitBlock(block, seq, model, cfg) {
-  if (!block || block.skipReason) return [];
-  if (NON_EMIT_TYPES.has(block.rawType) || NON_EMIT_TYPES.has(block.type)) return [];
+  if (!block || block.skipReason || NON_EMIT_TYPES.has(block.rawType) || NON_EMIT_TYPES.has(block.type)) return [];
   switch (block.type) {
     case 'PIPE': return emitPipe(block, seq, model, cfg);
     case 'FLANGE': return emitFlange(block, seq, cfg);
@@ -241,39 +149,54 @@ function emitBlock(block, seq, model, cfg) {
     default: return [];
   }
 }
-
+function bridgeOriginKey(block) {
+  return cleanText(block?.source?.fromRefNo || block?.fromRefNo || '');
+}
+function buildBridgeGroups(model) {
+  const groups = new Map();
+  for (const bridge of model?.bridgeBlocks || []) {
+    const key = bridgeOriginKey(bridge) || '__unkeyed';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(bridge);
+  }
+  return groups;
+}
+function shouldSkipOriginalPipe(block, model) {
+  return block?.type === 'PIPE' && Array.isArray(model?.bridgeBlocks) && model.bridgeBlocks.length > 0;
+}
 export function emitPcfModel(model, cfg = {}) {
   const eol = cfg?.windowsLineEndings === false ? '\n' : '\r\n';
   const lines = buildHeader(model, cfg);
   const emittedBlocks = [];
+  const bridgeGroups = buildBridgeGroups(model);
+  const emittedBridgeIds = new Set();
   let seq = 0;
-
-  for (const block of model?.blocks || []) {
-    if (block?.skipReason) continue;
+  const pushBlock = (block) => {
+    if (shouldSkipOriginalPipe(block, model)) return;
     const previewLines = emitBlock(block, seq + 1, model, cfg);
-    if (!previewLines.length) continue;
+    if (!previewLines.length) return;
     seq += 1;
     block.emitSeq = seq;
-    const blockLines = emitBlock(block, seq, model, cfg);
-    lines.push(...blockLines);
-    emittedBlocks.push({
-      id: block.id,
-      type: block.type,
-      rawType: block.rawType,
-      refNo: block.refNo,
-      seqNo: seq,
-      sourceKind: block.sourceKind,
-    });
-  }
-
-  return {
-    pcfText: lines.join(eol),
-    emittedBlocks,
-    meta: {
-      engine: 'common',
-      emittedBy: 'pcf-model-emitter',
-      lineCount: lines.length,
-      blockCount: emittedBlocks.length,
+    lines.push(...emitBlock(block, seq, model, cfg));
+    emittedBlocks.push({ id: block.id, type: block.type, rawType: block.rawType, refNo: block.refNo, seqNo: seq, sourceKind: block.sourceKind });
+  };
+  const pushBridgesFrom = (refNo) => {
+    const list = bridgeGroups.get(cleanText(refNo)) || [];
+    for (const bridge of list) {
+      if (emittedBridgeIds.has(bridge.id)) continue;
+      emittedBridgeIds.add(bridge.id);
+      pushBlock(bridge);
     }
   };
+  for (const block of model?.componentBlocks || []) {
+    pushBlock(block);
+    pushBridgesFrom(block.refNo || block.source?.originalRefNo);
+  }
+  // Safety net for bridges whose fromRefNo was not found in component list.
+  for (const bridge of model?.bridgeBlocks || []) {
+    if (emittedBridgeIds.has(bridge.id)) continue;
+    emittedBridgeIds.add(bridge.id);
+    pushBlock(bridge);
+  }
+  return { pcfText: lines.join(eol), emittedBlocks, meta: { engine: 'common', emittedBy: 'pcf-model-emitter', lineCount: lines.length, blockCount: emittedBlocks.length, bridgeOrdering: 'legacy-origin-after-component' } };
 }

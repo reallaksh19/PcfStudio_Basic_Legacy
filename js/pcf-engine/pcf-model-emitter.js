@@ -1,5 +1,5 @@
 /**
- * pcf-model-emitter.js — Common PCF Builder Phase 2/3
+ * pcf-model-emitter.js — Common PCF Builder Phase 2/3/4
  *
  * Converts canonical Common PCF model blocks into PCF text.
  * Phase 3B adds bridge ordering parity: bridge PIPE blocks are emitted
@@ -7,9 +7,11 @@
  * Phase 3C adds support-on-bridge split parity: supports located on a bridge
  * split the bridge into pipe segments and are emitted inline.
  * Phase 3D aligns message-square/formatting behavior with legacy Stage 4.
+ * Phase 4F uses centralized support mapping for SUPPORT_NAME/GUID.
  */
 
 import { emitCABlock } from './pcf-block-schema.js';
+import { resolveSupportMapping } from './support-mapper.js';
 
 const INDENT = '    ';
 const NON_EMIT_TYPES = new Set(['GASK', 'PCOM', 'MISC', 'WELD', 'ATTA', 'INST']);
@@ -89,7 +91,6 @@ function emitBend(block, seq, cfg) {
   lines.push(...emitMsgSq(['BEND', refNo ? `RefNo:=${refNo}` : '', `SeqNo:${seq}`], cfg));
   lines.push('BEND', `${INDENT}END-POINT    ${fmtCoord(block.ep1, block.bore, cfg)}`, `${INDENT}END-POINT    ${fmtCoord(block.ep2, block.bore, cfg)}`, `${INDENT}CENTRE-POINT  ${fmtCoord(block.cp, block.bore, cfg)}`);
   lines.push(...emitSkey(block));
-  // Legacy parity: Stage 4 emits ANGLE 90.0000 only when radius exists and does not emit BEND-RADIUS.
   if (block.radius || block.bendRadius) lines.push(`${INDENT}ANGLE ${fmtNum(90, cfg)}`);
   lines.push(...emitCA(block, 'BEND', seq), '');
   return lines;
@@ -127,9 +128,9 @@ function emitReducer(block, seq, cfg) {
   return lines;
 }
 function emitSupport(block, seq, cfg) {
-  const supportName = cleanText(block.supportName) || cleanText(cfg?.supportMapping?.fallbackName) || cleanText(cfg?.supportDefaultCoor) || 'CA150';
-  const rawGuid = cleanText(block.supportGuid);
-  const guidOut = rawGuid ? (rawGuid.startsWith('UCI:') ? rawGuid : `UCI:${rawGuid}`) : '';
+  const resolved = resolveSupportMapping(block, cfg);
+  const supportName = resolved.supportName || 'CA150';
+  const guidOut = resolved.supportGuid || '';
   const lines = [];
   lines.push('MESSAGE-SQUARE');
   lines.push(`${INDENT}SUPPORT, RefNo:=${refFor(block)}, SeqNo:${seq}, ${supportName}, ${guidOut}`);
@@ -139,6 +140,7 @@ function emitSupport(block, seq, cfg) {
   lines.push(`${INDENT}<SUPPORT_NAME>    ${supportName}`);
   if (guidOut) lines.push(`${INDENT}<SUPPORT_GUID>    ${guidOut}`);
   lines.push('');
+  block.supportMapping = resolved;
   return lines;
 }
 function emitBlock(block, seq, model, cfg) {
@@ -200,6 +202,7 @@ export function emitPcfModel(model, cfg = {}) {
   const supportBlocks = (model?.componentBlocks || []).filter(b => b.type === 'SUPPORT');
   let splitBridgeCount = 0;
   let inlineSupportCount = 0;
+  let supportMappedCount = 0;
   let seq = 0;
   const pushBlock = (block, options = {}) => {
     if (!options.force && block?.type === 'SUPPORT' && inlineSupportKeys.has(blockKey(block))) return;
@@ -209,7 +212,8 @@ export function emitPcfModel(model, cfg = {}) {
     seq += 1;
     block.emitSeq = seq;
     lines.push(...emitBlock(block, seq, model, cfg));
-    emittedBlocks.push({ id: block.id, type: block.type, rawType: block.rawType, refNo: block.refNo, seqNo: seq, sourceKind: block.sourceKind, splitKind: block.splitKind || '' });
+    if (block.type === 'SUPPORT' && block.supportMapping) supportMappedCount += 1;
+    emittedBlocks.push({ id: block.id, type: block.type, rawType: block.rawType, refNo: block.refNo, seqNo: seq, sourceKind: block.sourceKind, splitKind: block.splitKind || '', supportMapping: block.supportMapping || null });
   };
   const pushBridgeSplit = (bridge, originRefNo) => {
     const originRef = cleanText(originRefNo || bridgeOriginKey(bridge));
@@ -264,8 +268,10 @@ export function emitPcfModel(model, cfg = {}) {
       bridgeOrdering: 'legacy-origin-after-component',
       supportBridgeSplit: 'legacy-inline-projection',
       formattingParity: 'legacy-stage4-v1',
+      supportMapping: 'centralized-support-mapper',
       splitBridgeCount,
       inlineSupportCount,
+      supportMappedCount,
     }
   };
 }

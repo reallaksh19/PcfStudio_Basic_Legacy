@@ -22,8 +22,38 @@ function ensureTailwindRuntime() {
 
 export async function mountBrowserPcfFixer(container) {
   if (!container) throw new Error('PCF Fixer mount container not found');
+
+  window.__PCF_FIXER_MOUNT_STATUS__ = {
+    status: 'loading',
+    reactVersion: React.version,
+    mountedAt: null,
+    error: null,
+  };
+
   container.innerHTML = '<div style="padding:1.5rem;color:var(--text-muted);font-family:var(--font-code);text-align:center">Loading PCF Fixer...</div>';
-  await ensureTailwindRuntime();
-  if (!container.__pcfFixerRoot) container.__pcfFixerRoot = createRoot(container);
-  container.__pcfFixerRoot.render(React.createElement(App));
+
+  try {
+    await ensureTailwindRuntime();
+
+    if (!container.__pcfFixerRoot) {
+      container.__pcfFixerRoot = createRoot(container);
+    }
+
+    container.__pcfFixerRoot.render(React.createElement(App));
+
+    window.__PCF_FIXER_MOUNT_STATUS__ = {
+      status: 'mounted',
+      reactVersion: React.version,
+      mountedAt: Date.now(),
+      error: null,
+    };
+  } catch (err) {
+    window.__PCF_FIXER_MOUNT_STATUS__ = {
+      status: 'failed',
+      reactVersion: React.version,
+      mountedAt: null,
+      error: err?.message || String(err),
+    };
+    throw err;
+  }
 }

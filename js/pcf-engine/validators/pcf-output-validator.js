@@ -36,10 +36,13 @@ export function validatePcfOutputText(pcfText, options={}){
   for(let i=0;i<lines.length;i++){
     const raw=lines[i]; const t=raw.trim(); if(!t) continue;
     const keyword=t.split(/\s+/)[0];
-    if (TOP_LEVEL.has(keyword) || TOP_LEVEL.has(t)) {
-      if (/^\s+/.test(raw)) diagnostics.push(issue('error','PCF-TOP-INDENT','Top-level PCF keyword must not be indented.',{lineNo:i+1,line:raw}));
-    } else {
+    const isIndented = /^\s+/.test(raw);
+    if (!isIndented && (TOP_LEVEL.has(keyword) || TOP_LEVEL.has(t))) {
+      // Valid top-level keyword.
+    } else if (isIndented) {
       if (!raw.startsWith('    ')) diagnostics.push(issue('error','PCF-SUBLINE-INDENT','PCF sub-line must be indented by 4 spaces.',{lineNo:i+1,line:raw}));
+    } else {
+      diagnostics.push(issue('error','PCF-UNKNOWN-TOPLINE','Unknown unindented PCF line.',{lineNo:i+1,line:raw}));
     }
     if (/^(\s*)(END-POINT|CENTRE-POINT|BRANCH1-POINT|CO-ORDS)\b/.test(raw)) validateCoordPrecision(raw,decimals,diagnostics,i+1);
   }

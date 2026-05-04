@@ -34,8 +34,6 @@ test('Common PCF Builder emits and certifies in browser', async ({ page }) => {
   await page.goto('/');
   await page.waitForLoadState('networkidle');
 
-  await expect.poll(async () => page.evaluate(() => typeof import === 'function').catch(() => true)).toBeTruthy();
-
   const result = await page.evaluate(async (fixture) => {
     localStorage.setItem('pcfStudio.engineMode', 'common');
 

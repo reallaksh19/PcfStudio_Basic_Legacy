@@ -3,6 +3,7 @@
  * Initialises: New Ray tab, 3D Viewer tab, Master Data tab, Topology placeholder.
  */
 
+import { installPipingClassConvertedBoreCompat } from './services/piping-class-converted-bore-compat.js';
 import { initRayConceptTab }   from './ray-concept/rc-tab.js';
 import { initRayViewerTab }    from './ray-tabs/ray-viewer-tab.js';
 import { initRayMasterData }   from './ray-tabs/ray-masterdata-tab.js';
@@ -51,6 +52,9 @@ async function boot() {
     themeManager.init();
     document.getElementById('btn-theme-toggle')
       ?.addEventListener('click', () => themeManager.toggle?.() ?? themeManager.init());
+
+    // Legacy matcher compatibility must be installed before Ray tab master loading can call dataManager getters.
+    installPipingClassConvertedBoreCompat();
 
     // Tab routing
     initTabRouter();

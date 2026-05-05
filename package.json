@@ -7,7 +7,11 @@
     "dev": "vite",
     "start": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "playwright test",
+    "test:browser": "playwright test",
+    "test:browser:pcf-fixer": "playwright test tests/pcf-fixer.browser.spec.js",
+    "test:browser:pcf-gate": "playwright test tests/converted-bore.browser.spec.js tests/converted-bore-real-fixture.browser.spec.js tests/master-match-diagnostics.browser.spec.js tests/browser/common-pcf-builder.smoke.spec.js tests/pcf-fixer.browser.spec.js --project=chromium"
   },
   "keywords": [],
   "author": "",

@@ -9,7 +9,7 @@ import { getRayConfig, setRayConfig, resetRayConfig } from './rc-config.js';
 import { runStage1, emit2DCSV } from './rc-stage1-parser.js';
 import { runStage2 } from './rc-stage2-extractor.js';
 import { runStage3 } from './rc-stage3-ray-engine.js';
-import { runStage4 } from './rc-stage4-emitter.js';
+import { runStage4 } from './rc-stage4-dispatcher.js';
 import { debugLog, clearLog, getLog, renderDebugTab } from './rc-debug.js';
 import { loadMastersInto, collectMaterialCodeRequests } from './rc-master-loader.js';
 import { lookupPipelineRefs, formatDetailForLog } from './rc-pipeline-lookup.js';

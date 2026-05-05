@@ -1,4 +1,9 @@
 import { dataManager } from './data-manager.js';
+import {
+  CONVERTED_BORE_COL,
+  sameConvertedBore,
+  toSingleBoreMm
+} from './bore-converter.js';
 
 let staticWeightRows = [];
 const staticWeightRowsPromise = (async () => {
@@ -18,12 +23,6 @@ const NPS_TO_MM = {
   '14': 350, '16': 400, '18': 450, '20': 500, '24': 600, '30': 750, '36': 900, '42': 1050,
   '48': 1200
 };
-const NPS_NUM_TO_DN = new Map([
-  [0.5,15],[0.75,20],[1,25],[1.25,32],[1.5,40],[2,50],[2.5,65],[3,80],
-  [3.5,90],[4,100],[5,125],[6,150],[8,200],[10,250],[12,300],[14,350],
-  [16,400],[18,450],[20,500],[24,600],[30,750],[36,900],[42,1050],[48,1200]
-]);
-const DN_TO_NPS_NUM = new Map([...NPS_NUM_TO_DN.entries()].map(([nps, dn]) => [dn, nps]));
 
 const TABLE1 = [
   ['1/2',15,21.3,25,25],['3/4',20,26.7,29,29],['1',25,33.4,38,38],['1-1/4',32,42.2,48,48],
@@ -72,25 +71,7 @@ class MasterTableService {
   _n(v) { const n = Number.parseFloat(String(v ?? '').trim()); return Number.isFinite(n) ? n : null; }
   _s(v) { return String(v ?? '').replace(/\s+/g, ' ').trim(); }
   _fuzzyMmEq(a, b) { return Math.abs(a - b) <= Math.max(1.5, Math.abs(b) * 0.006); }
-  _parseBore(v) {
-    if (v == null) return null;
-    const raw = this._s(v);
-    if (!raw) return null;
-    const token = raw
-      .replace(/"/g, '')
-      .replace(/[\u2013\u2014\u2212]/g, '-')
-      .replace(/\s+/g, '');
-    if (token && Object.prototype.hasOwnProperty.call(NPS_TO_MM, token)) {
-      return NPS_TO_MM[token];
-    }
-    const direct = this._n(raw);
-    if (direct != null) return direct;
-    const fallbackToken = this._s(v).replace(/"/g, '');
-    if (fallbackToken && Object.prototype.hasOwnProperty.call(NPS_TO_MM, fallbackToken)) {
-      return NPS_TO_MM[fallbackToken];
-    }
-    return null;
-  }
+  _parseBore(v) { return toSingleBoreMm(v); }
   _odToDnFuzzy(odMm) {
     const t1 = this.tables?.table1EqualTee || [];
     let bestDn = null, bestOd = null, bestErr = Infinity;
@@ -104,33 +85,7 @@ class MasterTableService {
     if (bestDn == null || bestOd == null) return null;
     return this._fuzzyMmEq(odMm, bestOd) ? bestDn : null;
   }
-  _sameBore(aRaw, bRaw) {
-    const a = this._parseBore(aRaw);
-    const b = this._parseBore(bRaw);
-    if (a == null || b == null || a <= 0 || b <= 0) return false;
-    if (Math.abs(a - b) < 1) return true;
-    const aDnFromNps = NPS_NUM_TO_DN.get(a);
-    if (aDnFromNps != null && Math.abs(aDnFromNps - b) < 1) return true;
-    const bDnFromNps = NPS_NUM_TO_DN.get(b);
-    if (bDnFromNps != null && Math.abs(bDnFromNps - a) < 1) return true;
-    const aNpsFromDn = DN_TO_NPS_NUM.get(Math.round(a));
-    if (aNpsFromDn != null && Math.abs(aNpsFromDn - b) < 0.01) return true;
-    const bNpsFromDn = DN_TO_NPS_NUM.get(Math.round(b));
-    if (bNpsFromDn != null && Math.abs(bNpsFromDn - a) < 0.01) return true;
-    const aDnFromOd = this._odToDnFuzzy(a);
-    if (aDnFromOd != null) {
-      if (Math.abs(aDnFromOd - b) < 1) return true;
-      const aNpsFromOd = DN_TO_NPS_NUM.get(Math.round(aDnFromOd));
-      if (aNpsFromOd != null && Math.abs(aNpsFromOd - b) < 0.01) return true;
-    }
-    const bDnFromOd = this._odToDnFuzzy(b);
-    if (bDnFromOd != null) {
-      if (Math.abs(bDnFromOd - a) < 1) return true;
-      const bNpsFromOd = DN_TO_NPS_NUM.get(Math.round(bDnFromOd));
-      if (bNpsFromOd != null && Math.abs(bNpsFromOd - a) < 0.01) return true;
-    }
-    return false;
-  }
+  _sameBore(aRaw, bRaw) { return sameConvertedBore(aRaw, bRaw); }
   _isCodeLikeValveType(valveType) {
     const t = this._s(valveType).toUpperCase();
     return !t || (t.length <= 6 && /^[A-Z0-9_-]+$/.test(t) && !/\s/.test(t));
@@ -174,7 +129,14 @@ class MasterTableService {
   _normalizedWeightRows() {
     const rows = this.getTable4Rows();
     return rows.map((row) => {
-      const bore = this._parseBore(row.DN ?? row['Size (NPS)'] ?? row.Size ?? row.NS);
+      const bore = this._parseBore(
+        row[CONVERTED_BORE_COL] ??
+        row.DN ??
+        row.NB ??
+        row['Size (NPS)'] ??
+        row.Size ??
+        row.NS
+      );
       const rating = this._n(String(row.Rating ?? '').replace(/[^\d.]/g, ''));
       const length = this._n(row['RF-F/F'] ?? row['Length (RF-F/F)'] ?? row['RTJ F/F'] ?? row['BW-F/F'] ?? row.Length ?? row.length);
       const flangeWeight = this._n(row['RF/RTJ KG'] ?? row['Flange Weight'] ?? row.Weight);

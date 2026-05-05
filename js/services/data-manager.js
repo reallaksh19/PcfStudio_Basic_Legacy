@@ -2,6 +2,11 @@ import { gate } from "./gate-logger.js";
 import { log } from "../logger.js";
 import { ExcelParser } from "./excel-parser.js"; // Import ExcelParser
 import { materialService } from "./material-service.js"; // Import MaterialService
+import {
+    CONVERTED_BORE_COL,
+    ensureConvertedBoreRows,
+    guessBoreSourceColumn
+} from "./bore-converter.js";
 
 const MOD = 'DataManager';
 const PIPING_CLASS_STORAGE_KEY = 'pcf_master_pipingclass';
@@ -33,17 +38,20 @@ export class DataManager {
             linelist: {
                 lineNo: 'Line Number',
                 service: 'Service',
+                convertedBore: CONVERTED_BORE_COL
             },
             weights: {
                 size: 'Size (NPS)', // Default used for fuzzy matching. User data might be "Size (NPS)" or "DN"
                 length: 'Length (RF-F/F)',
                 description: 'Type Description',
                 weight: 'RF/RTJ KG', // Default used for fuzzy matching
-                rating: 'Rating'
+                rating: 'Rating',
+                convertedBore: CONVERTED_BORE_COL
             },
             pipingclass: {
                 size: 'Size',
                 class: 'Piping Class',
+                convertedBore: CONVERTED_BORE_COL,
                 material: 'Material_Name',
                 wall: 'Wall Thickness',
                 corrosion: 'Corrosion Allowance'
@@ -176,6 +184,37 @@ export class DataManager {
         }
     }
 
+    _convertedBoreStorageKey(type) {
+        return `pcf_master_converted_bore_source_${type}`;
+    }
+
+    getConvertedBoreSource(type, rows = null) {
+        const saved = localStorage.getItem(this._convertedBoreStorageKey(type));
+        if (saved) return saved;
+        const data =
+            Array.isArray(rows) ? rows :
+            type === 'linelist' ? this.linelistData :
+            type === 'weights' ? this.weightData :
+            type === 'pipingclass' ? this.pipingClassMaster :
+            [];
+        return data?.length ? guessBoreSourceColumn(Object.keys(data[0] || {}), type) : '';
+    }
+
+    _withConvertedBore(type, rows, sourceColumn = null) {
+        const chosen = sourceColumn || this.getConvertedBoreSource(type, rows);
+        const result = ensureConvertedBoreRows(rows, { type, sourceColumn: chosen });
+        if (result.sourceColumn) {
+            localStorage.setItem(this._convertedBoreStorageKey(type), result.sourceColumn);
+        }
+        return result;
+    }
+
+    _upgradeLoadedConvertedBores() {
+        this.linelistData = this._withConvertedBore('linelist', this.linelistData).rows;
+        this.weightData = this._withConvertedBore('weights', this.weightData).rows;
+        this.pipingClassMaster = this._withConvertedBore('pipingclass', this.pipingClassMaster).rows;
+    }
+
     // ── Persistence ──────────────────────────────────────────────────
 
     saveToStorage(type = null) {
@@ -262,6 +301,9 @@ export class DataManager {
                 lineDump: this.lineDumpData.length,
                 linelist: this.linelistData.length
             });
+
+            // Backward compatibility: upgrade old stored data with Converted Bore.
+            this._upgradeLoadedConvertedBores();
 
             // Prime the loaded piping sizes set so loadPipingClassSizes() skips already-loaded sizes.
             // Without this, re-calling loadPipingClassSizes() after a page reload would re-fetch
@@ -362,7 +404,7 @@ export class DataManager {
                     .then(result => {
                         if (result && result.length > 0) {
                             // Don't trigger change events here to strictly enforce MasterDataReady sync
-                            this.weightData = result;
+                            this.weightData = this._withConvertedBore('weights', result).rows;
                             console.info(`[DataManager] Auto-loaded Weight Master: ${result.length} rows`);
                         }
                     })
@@ -415,8 +457,9 @@ export class DataManager {
                     } catch {}
                 }
                 if (data && data.length > 0) {
+                    const convertedRows = this._withConvertedBore('pipingclass', data).rows;
                     // Append without replacing existing items
-                    this.pipingClassMaster.push(...data);
+                    this.pipingClassMaster.push(...convertedRows);
                     this._loadedPipingSizes.add(cleanSize);
                     newRowsAdded += data.length;
                     console.info(`[DataManager] Lazily loaded Piping Class Master for size ${sizeStr}: ${data.length} rows`);
@@ -503,7 +546,7 @@ export class DataManager {
         const requiredKeys = [this.headerMap.linelist.lineNo];
         const { valid, rejected, warnings } = this._validateSchema(data, requiredKeys, 'Linelist');
 
-        this.linelistData = valid;
+        this.linelistData = this._withConvertedBore('linelist', valid).rows;
         setTimeout(() => this.saveToStorage('linelist'), 0);
         this._notifyChange('linelist');
 
@@ -521,7 +564,7 @@ export class DataManager {
         // Accept any row with at least one non-empty value.
         const { valid, rejected, warnings } = this._validateSchema(data, [], 'Weights');
 
-        this.weightData = valid;
+        this.weightData = this._withConvertedBore('weights', valid).rows;
         setTimeout(() => this.saveToStorage('weights'), 0);
         this._notifyChange('weights');
 
@@ -538,7 +581,7 @@ export class DataManager {
         const requiredKeys = [this.headerMap.pipingclass.class];
         const { valid, rejected, warnings } = this._validateSchema(data, requiredKeys, 'PipingClassMaster');
 
-        this.pipingClassMaster = valid;
+        this.pipingClassMaster = this._withConvertedBore('pipingclass', valid).rows;
         setTimeout(() => this.saveToStorage('pipingclass'), 0);
         this._notifyChange('pipingclass');
 
@@ -549,6 +592,34 @@ export class DataManager {
             warnings: warnings.length > 0 ? warnings : undefined,
             sampleHeaders: valid.length > 0 ? Object.keys(valid[0]) : []
         });
+    }
+
+    convertMasterBores(type, sourceColumn) {
+        const src = String(sourceColumn || '').trim();
+        if (!src) return { converted: 0, unresolved: 0, sourceColumn: '' };
+
+        let result = null;
+
+        if (type === 'linelist') {
+            result = this._withConvertedBore('linelist', this.linelistData, src);
+            this.linelistData = result.rows;
+            setTimeout(() => this.saveToStorage('linelist'), 0);
+            this._notifyChange('linelist');
+        } else if (type === 'weights') {
+            result = this._withConvertedBore('weights', this.weightData, src);
+            this.weightData = result.rows;
+            setTimeout(() => this.saveToStorage('weights'), 0);
+            this._notifyChange('weights');
+        } else if (type === 'pipingclass') {
+            result = this._withConvertedBore('pipingclass', this.pipingClassMaster, src);
+            this.pipingClassMaster = result.rows;
+            setTimeout(() => this.saveToStorage('pipingclass'), 0);
+            this._notifyChange('pipingclass');
+        } else {
+            result = { converted: 0, unresolved: 0, sourceColumn: '' };
+        }
+
+        return result;
     }
 
     setPipingClassBaseUrl(url) {

@@ -1,9 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-test('Master Match Diagnostics exposes Converted Bore based CA3/CA4/CA7 match', async ({ page }) => {
-  await page.goto('/');
-
-  const result = await page.evaluate(async () => {
+async function seedDiagnosticsFixture(page) {
+  return page.evaluate(async () => {
     const { dataManager } = await import('/js/services/data-manager.js');
     const { ensureConvertedBoreRows } = await import('/js/services/bore-converter.js');
     const compat = await import('/js/services/piping-class-converted-bore-compat.js');
@@ -29,9 +27,14 @@ test('Master Match Diagnostics exposes Converted Bore based CA3/CA4/CA7 match', 
     ], { type: 'pipingclass', sourceColumn: 'Size' }).rows;
 
     compat.installPipingClassConvertedBoreCompat();
-    const rows = diag.buildMasterMatchDiagnostics();
-    return rows[0];
+    diag.initMasterMatchDiagnosticsPanel();
+    return diag.buildMasterMatchDiagnostics()[0];
   });
+}
+
+test('Master Match Diagnostics exposes Converted Bore based CA3/CA4/CA7 match', async ({ page }) => {
+  await page.goto('/');
+  const result = await seedDiagnosticsFixture(page);
 
   expect(result.rawBore).toBe('273.1');
   expect(result.convertedBore).toBe('250');
@@ -41,4 +44,27 @@ test('Master Match Diagnostics exposes Converted Bore based CA3/CA4/CA7 match', 
   expect(result.ca4).toBe('9.27');
   expect(result.ca7).toBe('1.5');
   expect(result.matchSource).toBe('converted-bore');
+});
+
+test('Master Match Diagnostics export buttons produce CSV and JSON downloads', async ({ page }) => {
+  await page.goto('/');
+  await seedDiagnosticsFixture(page);
+
+  await page.evaluate(async () => {
+    const diag = await import('/js/ui/master-match-diagnostics-panel.js');
+    diag.renderMasterMatchDiagnostics();
+  });
+
+  const csvDownload = page.waitForEvent('download');
+  await page.locator('#master-match-diagnostics-export-csv').click();
+  const csv = await csvDownload;
+  expect(csv.suggestedFilename()).toMatch(/^master-match-diagnostics-.*\.csv$/);
+
+  const jsonDownload = page.waitForEvent('download');
+  await page.locator('#master-match-diagnostics-export-json').click();
+  const json = await jsonDownload;
+  expect(json.suggestedFilename()).toMatch(/^master-match-diagnostics-.*\.json$/);
+
+  const helperExists = await page.evaluate(() => typeof window.__EXPORT_MASTER_MATCH_DIAGNOSTICS__ === 'function');
+  expect(helperExists).toBe(true);
 });

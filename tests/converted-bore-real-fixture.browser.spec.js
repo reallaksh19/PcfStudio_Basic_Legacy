@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test';
-import fixture from './fixtures/converted-bore-master-match.fixture.json' assert { type: 'json' };
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const fixture = JSON.parse(
+  readFileSync(join(__dirname, 'fixtures/converted-bore-master-match.fixture.json'), 'utf8')
+);
 
 test('Converted Bore real fixture resolves OD 273 variants to DN250 master CA values', async ({ page }) => {
   await page.goto('/');

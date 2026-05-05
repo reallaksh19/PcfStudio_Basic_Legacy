@@ -12,6 +12,28 @@ function headersFor(type) {
   return Object.keys(rows?.[0] || {});
 }
 
+function textOf(el) {
+  return String(el?.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function findLineNoDerivedAnchor() {
+  const candidates = [
+    '#linelist-derived-section',
+    '#linelist-x1-builder',
+    '#x1-builder-section',
+    '#linelist-attr-section',
+    '#linelist-mapping-section'
+  ];
+  for (const selector of candidates) {
+    const el = document.querySelector(selector);
+    if (el && /line\s*no|lineno|derived/.test(textOf(el))) return el;
+  }
+
+  const all = [...document.querySelectorAll('label, .mapping-row, .field-row, .form-row, div, section')];
+  const label = all.find(el => /line\s*no|lineno/.test(textOf(el)) && /derived/.test(textOf(el)));
+  return label?.closest?.('.mapping-config, .mapping-row, .field-row, .form-row, section, div') || null;
+}
+
 function hostFor(type) {
   if (type === 'linelist') {
     // Keep the Convert Bore control with the derived line/mapping attributes.
@@ -28,12 +50,13 @@ function hostFor(type) {
   return document.getElementById(`${type}-mapping-section`) ||
     document.getElementById(`${type}-status-bar`) ||
     document.getElementById('integ-app-container');
+  return element ? { element, position: 'afterend' } : null;
 }
 
 function renderTools(type) {
   if (!TYPES.includes(type)) return;
   const host = hostFor(type);
-  if (!host) return;
+  if (!host?.element) return;
 
   const headers = headersFor(type).filter(Boolean);
   if (!headers.length) return;
@@ -52,7 +75,7 @@ function renderTools(type) {
   wrap.id = id;
   wrap.dataset.placement = type === 'linelist' ? 'below-line-no-derived' : 'below-master-mapping';
   wrap.style.cssText = [
-    'margin:0.4rem 0',
+    'margin:0.45rem 0 0.65rem 0',
     'padding:0.45rem',
     'border:1px solid var(--steel)',
     'border-radius:6px',
@@ -77,7 +100,7 @@ function renderTools(type) {
     <span id="${id}-status" style="font-size:0.68rem;color:var(--text-muted)">${CONVERTED_BORE_COL} is auto-generated on import.</span>
   `;
 
-  host.insertAdjacentElement('afterend', wrap);
+  host.element.insertAdjacentElement(host.position || 'afterend', wrap);
 
   const btn = document.getElementById(`${id}-btn`);
   const select = document.getElementById(`${id}-select`);

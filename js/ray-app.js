@@ -9,6 +9,7 @@ import { initRayViewerTab }    from './ray-tabs/ray-viewer-tab.js';
 import { initRayMasterData }   from './ray-tabs/ray-masterdata-tab.js';
 import { initConvertedBoreTools } from './ui/converted-bore-tools.js';
 import { initMasterMatchDiagnosticsPanel } from './ui/master-match-diagnostics-panel.js';
+import { initCommonCa8ValveWeightResolver } from './ui/common-ca8-valve-weight-resolver.js';
 import { themeManager }        from './ui/theme-manager.js';
 import { APP_REVISION } from './ui/status-bar.js';
 
@@ -66,6 +67,7 @@ async function boot() {
     initRayMasterData();   // ③ Master Data + CA Config
     initConvertedBoreTools();
     initMasterMatchDiagnosticsPanel();
+    initCommonCa8ValveWeightResolver();
     try {
       const { initRayPcfFixerTab } = await import('./ray-tabs/ray-pcf-fixer-tab.js');
       initRayPcfFixerTab();  // ④ PCF Fixer

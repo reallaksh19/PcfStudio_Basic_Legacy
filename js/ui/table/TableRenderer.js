@@ -1,3 +1,5 @@
+import { masterTableService } from '../../services/master-table-service.js';
+
 /**
  * TableRenderer.js
  * Handles DOM manipulation, table structure creation, and cell updates.
@@ -14,6 +16,95 @@ export class TableRenderer {
         this._suppTbody = null;
     }
 
+    _n(value) {
+        const n = Number.parseFloat(String(value ?? '').replace(/[^\d.-]/g, ''));
+        return Number.isFinite(n) ? n : null;
+    }
+
+    _text(value) {
+        return String(value ?? '').trim();
+    }
+
+    _isValveRow(rowData) {
+        const component = this._text(rowData[this.headers.indexOf('Component')]).toUpperCase();
+        const rigid = this._text(rowData[this.headers.indexOf('Rigid Type')]).toUpperCase();
+        return component.includes('VALVE') || rigid.includes('VALVE') || component === 'V' || rigid === 'V';
+    }
+
+    _getValveWeightCandidates(rowData) {
+        if (!this._isValveRow(rowData)) return [];
+        const bore = this._n(rowData[this.headers.indexOf('DN (Bore)')]);
+        const rating = this._n(rowData[this.headers.indexOf('Rating')]);
+        const length = this._n(rowData[this.headers.indexOf('Len_Calc')]);
+        if (bore == null || rating == null || length == null) return [];
+        try {
+            return masterTableService.findValveWeightCandidates({
+                boreMm: bore,
+                ratingClass: rating,
+                lengthMm: length,
+            });
+        } catch (err) {
+            console.warn('[TableRenderer] Valve weight candidate lookup failed:', err?.message || err);
+            return [];
+        }
+    }
+
+    _candidateLabel(row, index) {
+        const type = this._text(row?.valve_type) || `Valve option ${index + 1}`;
+        const weight = this._text(row?.valve_weight);
+        const len = this._text(row?.length_mm);
+        const rating = this._text(row?.rating_class);
+        return `${type} — ${weight || 'no weight'} kg${len ? ` · L=${len}` : ''}${rating ? ` · CL=${rating}` : ''}`;
+    }
+
+    _renderCa8ValveDropdown(td, rowData, rowIdx, colIdx, value, candidates, onCellBlur) {
+        td.contentEditable = 'false';
+        td.classList.add('ca8-valve-ambiguous-cell');
+        td.title = 'Multiple valve weight rows match DN + rating + length. Select the correct CA8 weight.';
+
+        const select = document.createElement('select');
+        select.className = 'ca8-valve-weight-select';
+        select.style.cssText = [
+            'min-width:145px',
+            'max-width:230px',
+            'font-size:0.74rem',
+            'font-family:var(--font-code)',
+            'background:var(--bg-0)',
+            'color:var(--text-primary)',
+            'border:1px solid var(--amber)',
+            'border-radius:4px',
+            'padding:2px 5px',
+            'outline:none'
+        ].join(';');
+
+        const current = this._text(value);
+        const blank = document.createElement('option');
+        blank.value = '';
+        blank.textContent = 'Select valve weight…';
+        select.appendChild(blank);
+
+        candidates.forEach((candidate, optionIdx) => {
+            const opt = document.createElement('option');
+            opt.value = this._text(candidate?.valve_weight);
+            opt.textContent = this._candidateLabel(candidate, optionIdx);
+            opt.dataset.valveType = this._text(candidate?.valve_type);
+            opt.dataset.lengthMm = this._text(candidate?.length_mm);
+            opt.dataset.ratingClass = this._text(candidate?.rating_class);
+            if (current && opt.value === current) opt.selected = true;
+            select.appendChild(opt);
+        });
+
+        select.addEventListener('change', (event) => {
+            const nextValue = this._text(event.target.value);
+            rowData[colIdx] = nextValue;
+            td.classList.add('cell-edited');
+            onCellBlur(rowIdx, colIdx, nextValue);
+        });
+
+        td.innerHTML = '';
+        td.appendChild(select);
+    }
+
     render(rows, onCellBlur) {
         this.container.innerHTML = "";
         this.tableData = [];
@@ -24,6 +115,8 @@ export class TableRenderer {
         const suppStruct = this.createTableStruct("pcf-table-supports", "2. Supports / Zero-Length Items (Appended)");
         this._mainTbody = mainStruct.tbody;
         this._suppTbody = suppStruct.tbody;
+
+        const ca8Col = this.headers.indexOf('Weight (ATTR8)');
 
         rows.forEach((rowObj, idx) => {
             const tr = document.createElement("tr");
@@ -49,6 +142,8 @@ export class TableRenderer {
                 else if (missingP || missingN) rowStyleClass = "row-missing-conn";
             }
 
+            const valveWeightCandidates = ca8Col >= 0 ? this._getValveWeightCandidates(rowData) : [];
+
             rowData.forEach((val, colIdx) => {
                 const td = document.createElement("td");
                 td.textContent = val;
@@ -69,13 +164,17 @@ export class TableRenderer {
                 if (rowStyleClass === "row-loop-error") td.classList.add("bg-pink-error");
                 else if (rowStyleClass === "row-missing-conn") td.classList.add("bg-blue-light");
 
-                td.addEventListener("blur", (e) => {
-                    const newVal = e.target.textContent.trim();
-                    if (newVal !== String(val)) {
-                        onCellBlur(idx, colIdx, newVal);
-                        e.target.classList.add("cell-edited");
-                    }
-                });
+                if (!rowObj.isPoint && colIdx === ca8Col && valveWeightCandidates.length > 1) {
+                    this._renderCa8ValveDropdown(td, rowData, idx, colIdx, val, valveWeightCandidates, onCellBlur);
+                } else {
+                    td.addEventListener("blur", (e) => {
+                        const newVal = e.target.textContent.trim();
+                        if (newVal !== String(val)) {
+                            onCellBlur(idx, colIdx, newVal);
+                            e.target.classList.add("cell-edited");
+                        }
+                    });
+                }
 
                 tr.appendChild(td);
             });
@@ -444,6 +543,8 @@ export class TableRenderer {
             .cell-edited { border-bottom: 2px solid var(--amber) !important; }
             .fill-down-applied { background-color: rgba(245, 158, 11, 0.12) !important; }
             .table-section h3 { font-size: 1rem; color: var(--text-primary); margin-bottom: 0.5rem; border-bottom: 2px solid var(--steel); padding-bottom: 4px; }
+            .ca8-valve-ambiguous-cell { background-color: rgba(245, 158, 11, 0.10) !important; }
+            .ca8-valve-weight-select:focus { box-shadow: 0 0 0 2px rgba(245,158,11,0.22); }
         `;
         document.head.appendChild(style);
     }

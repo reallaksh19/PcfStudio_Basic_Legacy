@@ -30,20 +30,8 @@ jobs:
       - name: Build app
         run: npm run build
 
-      - name: Run Converted Bore benchmark smoke
-        run: npx playwright test tests/converted-bore.browser.spec.js --project=chromium
-
-      - name: Run Converted Bore real fixture regression
-        run: npx playwright test tests/converted-bore-real-fixture.browser.spec.js --project=chromium
-
-      - name: Run Master Match diagnostics smoke
-        run: npx playwright test tests/master-match-diagnostics.browser.spec.js --project=chromium
-
-      - name: Run Common PCF browser smoke
-        run: npx playwright test tests/browser/common-pcf-builder.smoke.spec.js --project=chromium
-
-      - name: Run PCF Fixer duplicate-React browser smoke
-        run: npx playwright test tests/pcf-fixer.browser.spec.js --project=chromium
+      - name: Run PCF browser gate
+        run: npm run test:browser:pcf-gate
 
       - name: Upload Playwright report
         if: always()

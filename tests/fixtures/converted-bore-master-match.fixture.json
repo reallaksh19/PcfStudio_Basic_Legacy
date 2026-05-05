@@ -1,0 +1,42 @@
+{
+  "description": "Regression fixture for OD/BORE values 273, 273.05, 273.1 resolving to Converted Bore 250 and matching Piping Class Master CA3/CA4/CA7.",
+  "linelistRows": [
+    {
+      "REF NO.": "OD-273-1",
+      "Piping Class": "A1",
+      "BORE": "273.1",
+      "OD": "273.1"
+    },
+    {
+      "REF NO.": "OD-273-05",
+      "Piping Class": "A1",
+      "BORE": "273.05",
+      "OD": "273.05"
+    },
+    {
+      "REF NO.": "OD-273",
+      "Piping Class": "A1",
+      "BORE": "273",
+      "OD": "273"
+    }
+  ],
+  "pipingClassRows": [
+    {
+      "Piping Class": "A1",
+      "Size": "250",
+      "CA3": "A106-B",
+      "CA4": "9.27",
+      "CA7": "1.5"
+    }
+  ],
+  "expected": {
+    "convertedBore": "250",
+    "matched": "YES",
+    "matchedSize": "250",
+    "matchedClass": "A1",
+    "ca3": "A106-B",
+    "ca4": "9.27",
+    "ca7": "1.5",
+    "matchSource": "converted-bore"
+  }
+}

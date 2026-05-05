@@ -3,6 +3,8 @@ import { CONVERTED_BORE_COL, convertBoreValue, sameConvertedBore } from '../serv
 
 const PANEL_ID = 'master-match-diagnostics-panel';
 const BUTTON_ID = 'master-match-diagnostics-button';
+const EXPORT_CSV_ID = 'master-match-diagnostics-export-csv';
+const EXPORT_JSON_ID = 'master-match-diagnostics-export-json';
 const MAX_ROWS = 200;
 
 const S = v => String(v ?? '').trim();
@@ -58,6 +60,35 @@ export function buildMasterMatchDiagnostics() {
 }
 
 function esc(v) { return S(v).replace(/[&<>]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[ch])); }
+function csvEscape(value) {
+  const text = String(value ?? '');
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+function diagnosticsCsv(rows) {
+  const headers = ['row','refNo','pipingClass','rawBore','od','convertedBore','conversionStatus','matched','matchedClass','matchedSize','ca3','ca4','ca7','matchSource'];
+  return [headers.join(','), ...rows.map(r => headers.map(h => csvEscape(r[h])).join(','))].join('\r\n');
+}
+function downloadText(filename, mimeType, text) {
+  const blob = new Blob([text], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+export function exportMasterMatchDiagnostics(format = 'csv') {
+  const rows = buildMasterMatchDiagnostics();
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  if (String(format).toLowerCase() === 'json') {
+    downloadText(`master-match-diagnostics-${stamp}.json`, 'application/json;charset=utf-8', JSON.stringify(rows, null, 2));
+  } else {
+    downloadText(`master-match-diagnostics-${stamp}.csv`, 'text/csv;charset=utf-8', diagnosticsCsv(rows));
+  }
+  return rows;
+}
 
 export function renderMasterMatchDiagnostics() {
   const host = document.getElementById('panel-masterdata') || document.body;
@@ -71,7 +102,9 @@ export function renderMasterMatchDiagnostics() {
   const rows = buildMasterMatchDiagnostics();
   const bad = rows.filter(r => r.matched !== 'YES' || !r.ca3 || !r.ca4 || !r.ca7).length;
   const heads = ['#','Ref','Class','Raw Bore','OD','Converted','Status','Matched','M.Class','M.Size','CA3','CA4','CA7','Source'];
-  panel.innerHTML = `<b style="color:var(--amber)">Master Matching Diagnostics</b><span style="margin-left:.75rem;color:${bad?'var(--red-warn)':'var(--green-ok)'}">Rows ${rows.length}, attention ${bad}</span><table style="width:100%;font-size:.72rem;border-collapse:collapse;margin-top:.5rem"><thead><tr>${heads.map(h=>`<th style="text-align:left;border-bottom:1px solid var(--steel);padding:4px">${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr><td>${r.row}</td><td>${esc(r.refNo)}</td><td>${esc(r.pipingClass)}</td><td>${esc(r.rawBore)}</td><td>${esc(r.od)}</td><td><b>${esc(r.convertedBore)}</b></td><td>${esc(r.conversionStatus)}</td><td>${r.matched}</td><td>${esc(r.matchedClass)}</td><td>${esc(r.matchedSize)}</td><td>${esc(r.ca3)}</td><td>${esc(r.ca4)}</td><td>${esc(r.ca7)}</td><td>${esc(r.matchSource)}</td></tr>`).join('')}</tbody></table>`;
+  panel.innerHTML = `<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap"><b style="color:var(--amber)">Master Matching Diagnostics</b><span style="color:${bad?'var(--red-warn)':'var(--green-ok)'}">Rows ${rows.length}, attention ${bad}</span><button type="button" class="btn btn-secondary btn-sm" id="${EXPORT_CSV_ID}">Export CSV</button><button type="button" class="btn btn-secondary btn-sm" id="${EXPORT_JSON_ID}">Export JSON</button></div><table style="width:100%;font-size:.72rem;border-collapse:collapse;margin-top:.5rem"><thead><tr>${heads.map(h=>`<th style="text-align:left;border-bottom:1px solid var(--steel);padding:4px">${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr><td>${r.row}</td><td>${esc(r.refNo)}</td><td>${esc(r.pipingClass)}</td><td>${esc(r.rawBore)}</td><td>${esc(r.od)}</td><td><b>${esc(r.convertedBore)}</b></td><td>${esc(r.conversionStatus)}</td><td>${r.matched}</td><td>${esc(r.matchedClass)}</td><td>${esc(r.matchedSize)}</td><td>${esc(r.ca3)}</td><td>${esc(r.ca4)}</td><td>${esc(r.ca7)}</td><td>${esc(r.matchSource)}</td></tr>`).join('')}</tbody></table>`;
+  document.getElementById(EXPORT_CSV_ID)?.addEventListener('click', () => exportMasterMatchDiagnostics('csv'));
+  document.getElementById(EXPORT_JSON_ID)?.addEventListener('click', () => exportMasterMatchDiagnostics('json'));
   return rows;
 }
 
@@ -88,5 +121,6 @@ export function initMasterMatchDiagnosticsPanel() {
     host.prepend(btn);
   }
   window.__MASTER_MATCH_DIAGNOSTICS__ = renderMasterMatchDiagnostics;
+  window.__EXPORT_MASTER_MATCH_DIAGNOSTICS__ = exportMasterMatchDiagnostics;
 }
 try { if (typeof window !== 'undefined') window.initMasterMatchDiagnosticsPanel = initMasterMatchDiagnosticsPanel; } catch (_) {}

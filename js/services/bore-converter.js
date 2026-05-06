@@ -110,7 +110,8 @@ function looksLikeRange(raw) {
   const a = Number(m[1]);
   const b = Number(m[2]);
   if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
-  return a >= 2 && b >= 2 && a !== b;
+  // Avoid treating common NPS fractions like 1/2 and 3/4 as a DN range.
+  return a >= 4 && b >= 4 && a !== b;
 }
 
 function odToDn(value) {

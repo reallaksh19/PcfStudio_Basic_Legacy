@@ -1,3 +1,4 @@
+import './exposeStore.js';
 const MODULE_CACHE = new Map();
 const CSS_CACHE = new Set();
 let babelPromise = null;

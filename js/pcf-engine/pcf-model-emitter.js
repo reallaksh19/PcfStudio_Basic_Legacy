@@ -227,7 +227,7 @@ function emitBlock(block, state, cfg, out) {
   // Stage 3 bridge pipes are the emitted pipe geometry. Emitting both creates
   // duplicate pipe runs, so Common skips source component PIPE blocks and emits
   // bridge PIPE blocks.
-  if (block.sourceKind === 'component' && block.type === 'PIPE') {
+  if (state.hasBridgePipes && block.sourceKind === 'component' && block.type === 'PIPE') {
     state.diagnostics.infos.push({ id: 'EMIT-PIPE-ORIGINAL-SKIP', type: 'PIPE', message: 'Original Stage 1 PIPE skipped; bridge pipes are emitted instead', refNo: block.refNo || '', reason: NON_EMIT_SOURCE_COMPONENT_PIPE });
     return;
   }
@@ -280,13 +280,14 @@ function buildEmissionOrder(model) {
 
 export function emitPcfModel(model, cfg = {}) {
   const lines = emitHeader(model, cfg);
+  const ordered = buildEmissionOrder(model);
   const state = {
     seq: 0,
     pipelineRef: model?.pipelineRef || '',
+    hasBridgePipes: ordered.some(block => block?.sourceKind === 'bridge' && block?.type === 'PIPE'),
     diagnostics: { errors: [], warnings: [], infos: [] },
   };
 
-  const ordered = buildEmissionOrder(model);
   for (const block of ordered) emitBlock(block, state, cfg, lines);
 
   const eol = cfg?.windowsLineEndings === false ? '\n' : '\r\n';

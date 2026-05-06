@@ -18,10 +18,10 @@ function textOf(el) {
 
 function findLineNoDerivedAnchor() {
   const candidates = [
+    '#linelist-attr-section',
     '#linelist-derived-section',
     '#linelist-x1-builder',
     '#x1-builder-section',
-    '#linelist-attr-section',
     '#linelist-mapping-section'
   ];
   for (const selector of candidates) {
@@ -36,18 +36,17 @@ function findLineNoDerivedAnchor() {
 
 function hostFor(type) {
   if (type === 'linelist') {
-    // Keep the Convert Bore control with the derived line/mapping attributes.
-    // The previous fallback preferred linelist-mapping-section, which rendered the
-    // control too high in the tab.  User expectation: directly below Line No. Derived.
-    return document.getElementById('linelist-attr-section') ||
+    const element = document.getElementById('linelist-attr-section') ||
+      findLineNoDerivedAnchor() ||
       document.getElementById('linelist-x1-builder-section') ||
       document.getElementById('linelist-derived-section') ||
       document.getElementById('linelist-mapping-section') ||
       document.getElementById('linelist-status-bar') ||
       document.getElementById('integ-app-container');
+    return element ? { element, position: 'afterend' } : null;
   }
 
-  return document.getElementById(`${type}-mapping-section`) ||
+  const element = document.getElementById(`${type}-mapping-section`) ||
     document.getElementById(`${type}-status-bar`) ||
     document.getElementById('integ-app-container');
   return element ? { element, position: 'afterend' } : null;

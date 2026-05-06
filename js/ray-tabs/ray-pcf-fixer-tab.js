@@ -21,6 +21,7 @@ export async function initRayPcfFixerTab() {
         const React = await import('react');
         const { createRoot } = await import('react-dom/client');
         await import('../pcf-fixer/index.css');
+        await import('../pcf-fixer/exposeStore.js');
         const appMod = await import('../pcf-fixer/App.jsx');
         const App = appMod.default || appMod.App;
         container.innerHTML = '';

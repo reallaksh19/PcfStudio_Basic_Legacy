@@ -1,0 +1,71 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  # GitHub announced Node.js 20 action-runtime deprecation. This opts this
+  # workflow into the newer runtime where supported by the hosted runner.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  deploy:
+    name: Deploy static PCF Studio site
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate static app entry points
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f index.html
+          test -f css/app.css
+          test -f js/ray-app.js
+
+      - name: Prepare Pages artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf _pages
+          mkdir -p _pages
+          rsync -a \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude '_pages' \
+            --exclude 'node_modules' \
+            --exclude 'docs/_site' \
+            ./ _pages/
+          touch _pages/.nojekyll
+          test -f _pages/index.html
+          test -f _pages/css/app.css
+          test -f _pages/js/ray-app.js
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _pages
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

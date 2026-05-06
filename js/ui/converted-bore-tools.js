@@ -16,6 +16,41 @@ function textOf(el) {
   return String(el?.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+function nearestPlacementBlock(el) {
+  if (!el) return null;
+  return el.closest?.('[data-linelist-key-columns], #linelist-key-columns-section, #linelist-primary-key-section, #linelist-smart-key-section, .linelist-key-columns, .linelist-primary-key, .mapping-card, .mapping-config, .panel, fieldset, section') || el;
+}
+
+function findLinelistKeyColumnsAnchor() {
+  const directCandidates = [
+    '#linelist-key-columns-section',
+    '#linelist-primary-key-section',
+    '#linelist-smart-key-section',
+    '[data-linelist-key-columns]',
+    '.linelist-key-columns',
+    '.linelist-primary-key'
+  ];
+  for (const selector of directCandidates) {
+    const el = document.querySelector(selector);
+    if (el) return el;
+  }
+
+  const scope = document.getElementById('linelist') || document.getElementById('integ-app-container') || document;
+  const candidates = [...scope.querySelectorAll('h1,h2,h3,h4,h5,h6,label,legend,.panel-title,.mapping-title,.mapping-row,.field-row,.form-row,fieldset,section,div')]
+    .filter(el => {
+      const text = textOf(el);
+      return text.includes('key columns') || (text.includes('primary key') && text.includes('service') && text.includes('sequence'));
+    })
+    .sort((a, b) => textOf(a).length - textOf(b).length);
+
+  for (const candidate of candidates) {
+    const block = nearestPlacementBlock(candidate);
+    if (block && block.id !== 'linelist' && block.id !== 'integ-app-container') return block;
+  }
+
+  return null;
+}
+
 function findLineNoDerivedAnchor() {
   const candidates = [
     '#linelist-attr-section',
@@ -36,20 +71,21 @@ function findLineNoDerivedAnchor() {
 
 function hostFor(type) {
   if (type === 'linelist') {
-    const element = document.getElementById('linelist-attr-section') ||
+    const element = findLinelistKeyColumnsAnchor() ||
+      document.getElementById('linelist-mapping-section') ||
       findLineNoDerivedAnchor() ||
       document.getElementById('linelist-x1-builder-section') ||
       document.getElementById('linelist-derived-section') ||
-      document.getElementById('linelist-mapping-section') ||
+      document.getElementById('linelist-attr-section') ||
       document.getElementById('linelist-status-bar') ||
       document.getElementById('integ-app-container');
-    return element ? { element, position: 'afterend' } : null;
+    return element ? { element, position: 'afterend', placement: 'below-key-columns' } : null;
   }
 
   const element = document.getElementById(`${type}-mapping-section`) ||
     document.getElementById(`${type}-status-bar`) ||
     document.getElementById('integ-app-container');
-  return element ? { element, position: 'afterend' } : null;
+  return element ? { element, position: 'afterend', placement: 'below-master-mapping' } : null;
 }
 
 function renderTools(type) {
@@ -72,7 +108,7 @@ function renderTools(type) {
 
   const wrap = document.createElement('div');
   wrap.id = id;
-  wrap.dataset.placement = type === 'linelist' ? 'below-line-no-derived' : 'below-master-mapping';
+  wrap.dataset.placement = host.placement || (type === 'linelist' ? 'below-key-columns' : 'below-master-mapping');
   wrap.style.cssText = [
     'margin:0.45rem 0 0.65rem 0',
     'padding:0.45rem',
@@ -82,8 +118,10 @@ function renderTools(type) {
     'display:flex',
     'align-items:center',
     'gap:0.5rem',
-    'flex-wrap:wrap'
-  ].join(';');
+    'flex-wrap:wrap',
+    'width:100%',
+    type === 'linelist' ? 'flex:0 0 100%' : ''
+  ].filter(Boolean).join(';');
 
   const esc = (s) => String(s).replace(/"/g, '&quot;');
   const options = headers

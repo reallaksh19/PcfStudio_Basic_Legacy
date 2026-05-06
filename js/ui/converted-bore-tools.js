@@ -96,6 +96,35 @@ function hostFor(type) {
   return element ? { element, position: 'afterend', placement: 'below-master-mapping' } : null;
 }
 
+function resolveBoreSource(type, headers) {
+  const saved = dataManager.getConvertedBoreSource?.(type) || '';
+  const preferred = guessPreferredBoreSourceColumn(headers, type) || guessBoreSourceColumn(headers, type);
+  const source = shouldUsePreferredBoreSource(saved, preferred, headers, type) ? preferred : (saved || preferred);
+  return { saved, preferred, source };
+}
+
+function autoConvertIfNeeded(type, sourceColumn, status = null) {
+  const rows = rowsFor(type);
+  if (!rows.length || !sourceColumn) return null;
+
+  const signature = `${type}|${rows.length}|${sourceColumn}`;
+  if (AUTO_CONVERTED.has(signature)) return null;
+  AUTO_CONVERTED.add(signature);
+
+  const res = dataManager.convertMasterBores(type, sourceColumn);
+  if (status) {
+    status.textContent = `✓ Auto Convert to Bore: ${res.converted} rows, unresolved ${res.unresolved}, source: ${res.sourceColumn}`;
+    status.style.color = 'var(--green-ok)';
+  }
+  gate('ConvertedBoreTools', 'AutoConvertToBore', `${type} auto converted bore`, {
+    type,
+    sourceColumn,
+    converted: res.converted,
+    unresolved: res.unresolved
+  });
+  return res;
+}
+
 function renderTools(type) {
   if (!TYPES.includes(type)) return;
   const host = hostFor(type);
@@ -177,6 +206,7 @@ function renderTools(type) {
 
   btn?.addEventListener('click', () => {
     const sourceColumn = select?.value || '';
+    AUTO_CONVERTED.delete(`${type}|${rowsFor(type).length}|${sourceColumn}`);
     const res = dataManager.convertMasterBores(type, sourceColumn);
     if (status) {
       status.textContent = `✓ Converted ${res.converted} rows, unresolved ${res.unresolved}, source: ${res.sourceColumn}`;

@@ -20,6 +20,7 @@ import { masterTableService } from '../services/master-table-service.js';
 import { readExcelAsCSV, isExcelFile } from '../input/excel-parser.js';
 import { showMaterialCodePopup } from '../ui/material-code-popup.js';
 import { convertAvevaXmlToRawCsv } from './rc-xml-import.js';
+import { compactDroppedInlineComponentsForIsoPcf } from './rc-inline-drop-compactor.js';
 
 // ── Internal state (isolated to this tab) ────────────────────────────────────
 const rcState = {
@@ -139,6 +140,7 @@ function buildPanelHTML() {
       <button id="rc-btn-derive-lineno" style="${actionPill}" title="Derive blank LINENO KEY and PIPING CLASS from PIPELINE-REFERENCE in Final 2D CSV">${ICO.mapPin} LineNo Key</button>
       <button id="rc-btn-load-masters" style="${actionPill}" disabled>${ICO.database} Masters</button>
       <button id="rc-btn-reset-ca" style="${actionPill}" disabled title="Clear all CA-related properties for all components">Reset CA</button>
+      <button id="rc-btn-reset-line-pc-rating" style="${actionPill}" disabled title="Clear LineNoKey, Piping Class and Rating from all current 2D rows">Reset LineNoKey/PC/Rating</button>
       <span id="rc-masters-status" style="font-size:0.68rem;color:var(--text-muted);font-family:var(--font-inter)"></span>
     </div>
     <!-- Interface group -->
@@ -348,6 +350,9 @@ function wireEvents(root) {
   });
   root.querySelector('#rc-btn-push-datatable').addEventListener('click', () => runPushToDatatable(root));
   root.querySelector('#rc-btn-reset-ca').addEventListener('click', () => runResetCA(root));
+  root.querySelector('#rc-btn-reset-line-pc-rating')?.addEventListener('click', () => {
+    resetLineNoKeyPcRating(root);
+  });
 
   // Preview selector
   root.querySelectorAll('.rc-preview-btn').forEach(btn =>
@@ -533,6 +538,7 @@ async function runS1(root) {
     setBtn(root, '#rc-btn-save-2dcsv', true);
     setBtn(root, '#rc-btn-load-masters', true);
     setBtn(root, '#rc-btn-reset-ca', true);
+    setBtn(root, '#rc-btn-reset-line-pc-rating', true);
     setBtn(root, '#rc-btn-pipeline-lookup', true);
     render2DTable(root, csvText, rcState.components);
     activatePreviewBtn(root, '2dcsv');
@@ -614,47 +620,6 @@ async function runS3(root, passOverride = null) {
   }
 }
 
-/**
- * Build ISOPCF CSV rows by dropping GASK/INST/PCOM/MISC components and
- * stretching adjacent preferred components to bridge the gaps.
- */
-function buildIsopcfRows(components, cfg) {
-  const drop = new Set(cfg.isopcfDrop || ['GASK', 'INST', 'PCOM', 'MISC']);
-  const stretchPriority = cfg.isopcfStretchPriority || ['PIPE', 'FLANGE', 'TEE', 'BEND'];
-  let rows = components.map(c => ({ ...c }));
-
-  // For each dropped component, stretch EP2 of the preceding or EP1 of the following
-  // preferred component to bridge the gap
-  for (let i = 0; i < rows.length; i++) {
-    if (!drop.has(rows[i].type)) continue;
-    const dropped = rows[i];
-    if (!dropped.ep1 || !dropped.ep2) continue;
-
-    // Find preceding stretchable component
-    let stretched = false;
-    for (let j = i - 1; j >= 0; j--) {
-      if (drop.has(rows[j].type)) continue;
-      if (stretchPriority.includes(rows[j].type) && rows[j].ep2) {
-        rows[j] = { ...rows[j], ep2: { ...dropped.ep2 } };
-        stretched = true;
-        break;
-      }
-      break;
-    }
-    if (!stretched) {
-      // Try following component
-      for (let j = i + 1; j < rows.length; j++) {
-        if (drop.has(rows[j].type)) continue;
-        if (stretchPriority.includes(rows[j].type) && rows[j].ep1) {
-          rows[j] = { ...rows[j], ep1: { ...dropped.ep1 } };
-          break;
-        }
-        break;
-      }
-    }
-  }
-  return rows.filter(c => !drop.has(c.type));
-}
 
 /**
  * Build a simple CSV string from ISOPCF component rows for the preview tab.
@@ -682,6 +647,10 @@ function _buildIsoPcfCsvText(rows) {
 
 async function runS4(root) {
   const baseComponents = rcState.finalComponents.length ? rcState.finalComponents : rcState.components;
+  const compactedSource = compactDroppedInlineComponentsForIsoPcf(baseComponents, { dropTypes: ['GASKET'] });
+  const pcfInputComponents = compactedSource.components && compactedSource.components.length
+    ? compactedSource.components
+    : baseComponents;
   if (!baseComponents.length) return;
   passLog(root, `── S4  EMIT ISO  ${_now()} ──`, 'header');
   if (rcState.engineMode === 'common') {
@@ -701,7 +670,7 @@ async function runS4(root) {
       // Mark injected bridge pipes before scaling so they can be identified after
       const markedBridges = (rcState.injectedPipes || []).map(p => ({ ...p, _isBridge: true }));
       const { components: scaledComps } = await maybeScaleCoords(
-        [...baseComponents, ...markedBridges],
+        [...pcfInputComponents, ...markedBridges],
         null  // auto-scale without popup
       );
       // Interleave bridge pipes after their source fittings (matching legacy S4 order)
@@ -726,14 +695,22 @@ async function runS4(root) {
     } else {
       // Legacy engine (unchanged)
       ({ pcfText } = runStage4(
-        baseComponents, rcState.injectedPipes, rcState.pipelineRef, debugLog
+        pcfInputComponents, rcState.injectedPipes, rcState.pipelineRef, debugLog
       ));
     }
     rcState.isoMetricPcfText = pcfText;
     rcState.stageStatus.s4   = 'done';
     // Build ISOPCF CSV (drop GASK/INST/PCOM/MISC, stretch adjacent)
     const cfg4 = getConfig();
-    rcState.isoPcfComponents = buildIsopcfRows(baseComponents, cfg4);
+    const compacted = compactDroppedInlineComponentsForIsoPcf(baseComponents, { dropTypes: ['GASKET'] });
+    rcState.isoPcfComponents = compacted.components;
+    rcState.isoPcfDropLog = compacted.dropLog || [];
+    if (rcState.isoPcfDropLog.length) {
+      const compactedCount = rcState.isoPcfDropLog
+        .filter(x => x.status === 'compacted')
+        .reduce((sum, x) => sum + (x.droppedCount || 0), 0);
+      passLog(root, `🔧 ISOPCF geometry compacted: suppressed ${compactedCount} GASKET row(s), adjusted adjacent EP2/EP1 continuity.`, 'info');
+    }
     rcState.isoPcfCsvText    = _buildIsoPcfCsvText(rcState.isoPcfComponents);
     const totalLines  = pcfText.split('\n').filter(l => l.trim()).length;
     const compBlocks  = (pcfText.match(/^(PIPE|FLANGE|BEND|TEE|OLET|VALVE|SUPPORT|ELBOW)/gm)||[]).length;
@@ -997,7 +974,15 @@ async function runLoadMasters(root) {
     // ── Sync CA1-CA10 → ISOPCF CSV → Isometric PCF ──────────────────
     // Re-build the ISOPCF component list (preserves updated CA values via spread)
     const cfg4 = getConfig();
-    rcState.isoPcfComponents = buildIsopcfRows(targets, cfg4);
+    const compactedTarget = compactDroppedInlineComponentsForIsoPcf(targets, { dropTypes: ['GASKET'] });
+    rcState.isoPcfComponents = compactedTarget.components;
+    rcState.isoPcfDropLog = compactedTarget.dropLog || [];
+    if (rcState.isoPcfDropLog.length) {
+      const compactedCount = rcState.isoPcfDropLog
+        .filter(x => x.status === 'compacted')
+        .reduce((sum, x) => sum + (x.droppedCount || 0), 0);
+      passLog(root, `🔧 ISOPCF geometry compacted: suppressed ${compactedCount} GASKET row(s), adjusted adjacent EP2/EP1 continuity.`, 'info');
+    }
     rcState.isoPcfCsvText    = _buildIsoPcfCsvText(rcState.isoPcfComponents);
     // Re-run S4 to regenerate the Isometric PCF text with updated CA1-CA10
     if (targets.length) {
@@ -2133,6 +2118,87 @@ function _verifyDatatablePayload(rows) {
   return { ok: missing.length === 0, missing };
 }
 
+
+function clearLineNoKeyPcRatingFields(row) {
+  if (!row) return row;
+
+  const next = { ...row };
+
+  // Canonical fields used by Ray / PCF Fixer / common PCF builder.
+  next.lineNoKey = '';
+  next.LINENO_KEY = '';
+  next.pipelineRef = '';
+  next.PIPELINE_REFERENCE = '';
+  next.pipingClass = '';
+  next.PIPING_CLASS = '';
+  next.rating = '';
+  next.RATING = '';
+
+  // CSV/header-style aliases.
+  next['Line No. (Derived)'] = '';
+  next['PIPELINE-REFERENCE'] = '';
+  next['Piping Class'] = '';
+  next['Rating'] = '';
+
+  // Attribute dictionaries.
+  if (next.attributes && typeof next.attributes === 'object') {
+    next.attributes = { ...next.attributes };
+    next.attributes['Line No. (Derived)'] = '';
+    next.attributes['PIPELINE-REFERENCE'] = '';
+    next.attributes['PIPING_CLASS'] = '';
+    next.attributes['RATING'] = '';
+  }
+
+  if (next.componentAttrs && typeof next.componentAttrs === 'object') {
+    next.componentAttrs = { ...next.componentAttrs };
+    next.componentAttrs.LINENO_KEY = '';
+    next.componentAttrs.PIPING_CLASS = '';
+    next.componentAttrs.RATING = '';
+  }
+
+  return next;
+}
+
+function resetLineNoKeyPcRating(root) {
+  const sourceRows =
+    rcState.finalComponents && rcState.finalComponents.length
+      ? rcState.finalComponents
+      : rcState.components;
+
+  if (!sourceRows || !sourceRows.length) {
+    passLog(root, '⚠ No 2D rows available to reset LineNoKey/PC/Rating.', 'warn');
+    return;
+  }
+
+  const resetRows = sourceRows.map(clearLineNoKeyPcRatingFields);
+
+  if (rcState.finalComponents && rcState.finalComponents.length) {
+    rcState.finalComponents = resetRows;
+    rcState.finalCsv2DText = emit2DCSV(rcState.finalComponents, getRayConfig());
+
+    // Any downstream generated output is now stale.
+    rcState.isoPcfComponents = [];
+    rcState.isoPcfCsvText = '';
+    rcState.isoMetricPcfText = '';
+
+    render2DTable(root, rcState.finalCsv2DText, rcState.finalComponents);
+  } else {
+    rcState.components = resetRows;
+    rcState.csv2DText = emit2DCSV(rcState.components, getRayConfig());
+
+    rcState.finalComponents = [];
+    rcState.finalCsv2DText = '';
+    rcState.isoPcfComponents = [];
+    rcState.isoPcfCsvText = '';
+    rcState.isoMetricPcfText = '';
+
+    render2DTable(root, rcState.csv2DText, rcState.components);
+  }
+
+  passLog(root, `🧹 Reset LineNoKey / Piping Class / Rating for ${resetRows.length} row(s).`, 'info');
+  updatePreview(root);
+}
+
 async function runResetCA(root) {
   const usingFinal = rcState.finalComponents && rcState.finalComponents.length > 0;
   const components = usingFinal ? rcState.finalComponents : rcState.components;
@@ -2259,7 +2325,9 @@ function renderIsoPcfTable(root, rows) {
 function _syncIsoFromLatestComponents() {
   const base = rcState.finalComponents.length ? rcState.finalComponents : rcState.components;
   if (!base.length) return [];
-  rcState.isoPcfComponents = buildIsopcfRows(base, getConfig());
+  const compactedSync = compactDroppedInlineComponentsForIsoPcf(base, { dropTypes: ['GASKET'] });
+  rcState.isoPcfComponents = compactedSync.components;
+  rcState.isoPcfDropLog = compactedSync.dropLog || [];
   rcState.isoPcfCsvText = _buildIsoPcfCsvText(rcState.isoPcfComponents);
   return base;
 }

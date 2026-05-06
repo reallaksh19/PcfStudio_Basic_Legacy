@@ -62,6 +62,7 @@ const getCAColor = (str) => {
 };
 
 const computeSpools = (dataTable) => {
+    dataTable = Array.isArray(dataTable) ? dataTable : [];
     const spools = {}; // rowIndex -> spoolId
     let spoolCounter = 1;
 
@@ -2263,7 +2264,7 @@ const ControlsAutoCenter = ({ externalRef }) => {
 
         const tPos = bounds.center.clone();
         const dist = Math.max(bounds.maxDim * 1.6, 1000);
-        
+
         const upAxis = useStore.getState().appSettings.upAxis || 'Z';
         const up = upAxis === 'Z' ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
         let cPos = new THREE.Vector3(tPos.x + dist, tPos.y - dist, tPos.z + dist);

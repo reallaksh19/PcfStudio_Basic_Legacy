@@ -85,6 +85,32 @@ function enforceNumeric(val) {
   return isNaN(n) ? String(val) : String(n);
 }
 
+function shouldEmitCANumericValue(val) {
+  if (val === null || val === undefined) return false;
+
+  const text = String(val).trim();
+  if (!text) return false;
+
+  const normalized = text.toUpperCase();
+  if (
+    normalized === 'NULL' ||
+    normalized === 'N/A' ||
+    normalized === 'NA' ||
+    normalized === 'UNDEFINED' ||
+    normalized === 'UNDEFINED MM'
+  ) {
+    return false;
+  }
+
+  const numeric = Number(text.replace(/,/g, ''));
+  if (Number.isFinite(numeric) && Math.abs(numeric) === 0) {
+    return false;
+  }
+
+  return true;
+}
+
+
 /**
  * Emit CA1–CA10, CA97, CA98 lines for a component.
  * Automatically skips lines not allowed for the block type.
@@ -101,7 +127,7 @@ export function emitCABlock(ca, blockType, refNo, seqNo) {
 
   for (const slot of allowed) {
     const val = ca?.[slot];
-    if (val == null || val === '') continue;
+    if (!shouldEmitCANumericValue(val)) continue;
     const attrNum = slot;
     const emitVal = slot === '3' ? enforceNumeric(val) : String(val);
     lines.push(`${INDENT}COMPONENT-ATTRIBUTE${attrNum}  ${emitVal}`);

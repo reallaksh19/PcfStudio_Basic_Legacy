@@ -214,6 +214,15 @@ export class MasterDataController {
     return label ? ` · session: ${label}` : '';
   }
 
+
+  _previewHeadersWithConvertedBore(data) {
+    const headers = Object.keys(data?.[0] || {});
+    if (!headers.includes('Converted Bore')) {
+      headers.push('Converted Bore');
+    }
+    return headers;
+  }
+
   handleDataChange(type) {
     // Guard: renderMappingUI calls updateHeaderMap which fires _notifyChange again.
     // Without this guard that creates an infinite recursive loop (each level causes
@@ -234,8 +243,9 @@ export class MasterDataController {
       const statusBar = document.getElementById("weights-status-bar");
       if (data && data.length > 0) {
         document.getElementById("weights-mapping-section").style.display = "";
-        const headers = Object.keys(data[0] || {});
-        this.renderMappingUI('weights', headers);
+        const mapHeaders = Object.keys(data[0] || {});
+        this.renderMappingUI('weights', mapHeaders);
+        const headers = this._previewHeadersWithConvertedBore(data);
         this.renderPreview('weights', data, headers);
 
         const dropZone = document.getElementById("weights-drop");
@@ -261,8 +271,9 @@ export class MasterDataController {
       const statusBar = document.getElementById("pipingclass-status-bar");
       if (data && data.length > 0) {
         document.getElementById("pipingclass-mapping-section").style.display = "";
-        const headers = Object.keys(data[0] || {});
-        this.renderMappingUI('pipingclass', headers);
+        const mapHeaders = Object.keys(data[0] || {});
+        this.renderMappingUI('pipingclass', mapHeaders);
+        const headers = this._previewHeadersWithConvertedBore(data);
         this.renderPreview('pipingclass', data, headers);
 
         const dropZone = document.getElementById("piping-drop");
@@ -328,13 +339,14 @@ export class MasterDataController {
       const statusEl = document.getElementById("linelist-status");
       const statusBar = document.getElementById("linelist-status-bar");
       if (data && data.length > 0) {
-        const headers = Object.keys(data[0] || {});
-        this.renderSmartMapUI(headers);
-        this.populateSourceSelect(headers);
-        this.renderX1Builder(headers);
+        const mapHeaders = Object.keys(data[0] || {});
+        this.renderSmartMapUI(mapHeaders);
+        this.populateSourceSelect(mapHeaders);
+        this.renderX1Builder(mapHeaders);
         document.getElementById("linelist-mapping-section").style.display = "";
         document.getElementById("linelist-attr-section").style.display = "";
         
+        const headers = this._previewHeadersWithConvertedBore(data);
         this.renderPreview('linelist', data, headers);
 
         const dropZone = document.getElementById("linelist-drop");
@@ -969,8 +981,13 @@ export class MasterDataController {
     const labelEl = document.getElementById('msd-label');
     if (!dialog) return;
 
+    const defaultLabel =
+      (this._lastMasterFileNameByType?.[type]) ||
+      localStorage.getItem(`pcf_last_master_filename_${type}`) ||
+      fileName || '';
+
     const savedLabel = localStorage.getItem(`pcf_session_label_${type}`);
-    const baseName = fileName.replace(/\.[^.]+$/, '');
+    const baseName = defaultLabel.replace(/\.[^.]+$/, '');
     labelEl.value = savedLabel || baseName;
 
     const typeLabels = { linelist: 'Linelist', weights: 'Weight Config', pipingclass: 'Piping Class', matmap: 'Material Map', linedump: 'Line Dump (E3D)' };
@@ -1072,6 +1089,11 @@ export class MasterDataController {
   // ═══════════════════════════════════════════
   async handleUpload(file, type) {
     if (!file) return;
+
+    this._lastMasterFileNameByType = this._lastMasterFileNameByType || {};
+    this._lastMasterFileNameByType[type] = file.name;
+    localStorage.setItem(`pcf_last_master_filename_${type}`, file.name);
+
 
     // Get comprehensive keywords from config for Linelist
     let keywords = [];
@@ -1194,7 +1216,8 @@ export class MasterDataController {
       } else if (type === "pipingclass") {
         dataManager.setPipingClassMaster(result.data);
         document.getElementById("pipingclass-mapping-section").style.display = "";
-        this.renderPreview('pipingclass', result.data, result.headers);
+        const headersWithBore = this._previewHeadersWithConvertedBore(result.data);
+        this.renderPreview('pipingclass', result.data, headersWithBore);
       }
 
       // Mirror success summary to linelist log only for non-weight types
@@ -1209,7 +1232,8 @@ export class MasterDataController {
 
       // Render Mapping UI for all types (including Linelist for Key Columns)
       this.renderMappingUI(type, result.headers);
-      this.renderPreview(type, result.data, result.headers);
+      const headersWithBore = this._previewHeadersWithConvertedBore(result.data);
+      this.renderPreview(type, result.data, headersWithBore);
 
       // Update drop zone to show success
       const dropZone = document.getElementById(dropZoneMap[type]);
@@ -1234,6 +1258,11 @@ export class MasterDataController {
   async handleMatMapUpload(file) {
     if (!file) return;
 
+    this._lastMasterFileNameByType = this._lastMasterFileNameByType || {};
+    this._lastMasterFileNameByType.matmap = file.name;
+    localStorage.setItem(`pcf_last_master_filename_matmap`, file.name);
+
+
     const statusBar = document.getElementById("matmap-status-bar");
     const statusEl = document.getElementById("matmap-status");
     statusBar.style.display = "";
@@ -1249,6 +1278,7 @@ export class MasterDataController {
 
       // Render preview table from parsed map
       const headers = ["code", "desc"];
+      // Note: matmap does not need Converted Bore, but to be consistent or just leave it.
       this.renderPreview("matmap", result, headers);
 
       // Update drop zone to show success
@@ -1269,6 +1299,11 @@ export class MasterDataController {
   // ═══════════════════════════════════════════
   async handleDumpUpload(file) {
     if (!file) return;
+
+    this._lastMasterFileNameByType = this._lastMasterFileNameByType || {};
+    this._lastMasterFileNameByType.linedump = file.name;
+    localStorage.setItem(`pcf_last_master_filename_linedump`, file.name);
+
 
     const statusBar = document.getElementById("dump-status-bar");
     const statusEl = document.getElementById("dump-status");
@@ -1816,7 +1851,7 @@ export class MasterDataController {
     this.logToLinelist('success', `✓ ColumnX1 derived from [${keys.join(', ')}] — ${count} rows updated. headerMap.linelist.lineNo → "ColumnX1"`);
 
     // Re-render preview with ColumnX1 column
-    const allHeaders = Object.keys(enriched[0] || {});
+    const allHeaders = this._previewHeadersWithConvertedBore(enriched);
     this.renderPreview('linelist', enriched, allHeaders);
   }
 

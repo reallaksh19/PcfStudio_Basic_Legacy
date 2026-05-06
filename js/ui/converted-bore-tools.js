@@ -136,7 +136,11 @@ function renderTools(type) {
   const id = `converted-bore-tools-${type}`;
   document.getElementById(id)?.remove();
 
-  const { source: guessed } = resolveBoreSource(type, headers);
+  const saved = dataManager.getConvertedBoreSource?.(type) || '';
+  const preferred = guessPreferredBoreSourceColumn(headers, type) || guessBoreSourceColumn(headers, type);
+  const guessed = shouldUsePreferredBoreSource(saved, preferred, headers, type)
+    ? preferred
+    : (saved || preferred);
   const title =
     type === 'linelist' ? 'Linelist Converted Bore' :
     type === 'weights' ? 'Weight Config Converted Bore' :
@@ -179,8 +183,26 @@ function renderTools(type) {
   const select = document.getElementById(`${id}-select`);
   const status = document.getElementById(`${id}-status`);
 
-  // Requirement: importing any of the three master tables must trigger Convert to Bore automatically.
-  setTimeout(() => autoConvertIfNeeded(type, guessed, status), 0);
+  setTimeout(() => {
+    const rows = rowsFor(type);
+    if (!rows.length || !guessed) return;
+
+    const signature = `${type}|${rows.length}|${guessed}`;
+    if (AUTO_CONVERTED.has(signature)) return;
+    AUTO_CONVERTED.add(signature);
+
+    const res = dataManager.convertMasterBores(type, guessed);
+    if (status) {
+      status.textContent = `✓ Auto Convert to Bore: ${res.converted} rows, unresolved ${res.unresolved}, source: ${res.sourceColumn}`;
+      status.style.color = 'var(--green-ok)';
+    }
+    gate('ConvertedBoreTools', 'AutoConvertToBore', `${type} auto converted bore`, {
+      type,
+      sourceColumn: guessed,
+      converted: res.converted,
+      unresolved: res.unresolved
+    });
+  }, 0);
 
   btn?.addEventListener('click', () => {
     const sourceColumn = select?.value || '';

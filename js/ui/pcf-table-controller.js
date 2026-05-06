@@ -195,6 +195,108 @@ export class PcfTableController {
     }
 
     // ── Common: fetch master attributes for one table row ──────────────────
+
+    _num(value) {
+        const n = parseFloat(String(value ?? '').replace(/[^0-9.+-]/g, ''));
+        return Number.isFinite(n) ? n : NaN;
+    }
+
+    _getFirstValue(row, keys) {
+        for (const key of keys) {
+            if (!key) continue;
+            const value = row?.[key];
+            if (value !== undefined && value !== null && String(value).trim() !== '') {
+                return value;
+            }
+        }
+        return '';
+    }
+
+    _weightLengthKeys(primaryKey) {
+        return [
+            primaryKey,
+            'Length (RF-F/F)',
+            'RF-F/F',
+            'RF F/F',
+            'RF/RTJ F/F',
+            'Face to Face',
+            'F-F',
+            'F/F',
+            'Length',
+            'Len',
+            'Len_Calc'
+        ].filter(Boolean);
+    }
+
+    _componentWeightKeywords(component, rigidType) {
+        const source = String(rigidType || component || '').toUpperCase();
+        if (source.includes('FLANGE') || source === 'F') return ['FLANGE', 'FLG'];
+        if (source.includes('VALVE') || source === 'V') return ['VALVE', 'VLV'];
+        if (source.includes('ELBOW') || source.includes('BEND') || source === 'E') return ['ELBOW', 'ELB', 'BEND'];
+        if (source.includes('TEE') || source === 'T') return ['TEE'];
+        if (source.includes('RED') || source.includes('REDUCER')) return ['REDUCER', 'RED'];
+        if (source.includes('CAP')) return ['CAP'];
+        return source ? [source.split(/[\s_-]/)[0]] : [];
+    }
+
+    _findSmartWeightMatch({
+        weightMaster,
+        component,
+        rigidType,
+        bore,
+        rating,
+        length,
+        sizeKey,
+        ratingKey,
+        lengthKey,
+        weightKey,
+        descKey
+    }) {
+        const boreNum = this._num(bore);
+        const ratingNum = this._num(rating);
+        const lengthNum = this._num(length);
+
+        if (!Array.isArray(weightMaster) || !weightMaster.length) return null;
+        if (!Number.isFinite(boreNum) || !Number.isFinite(ratingNum) || !Number.isFinite(lengthNum)) return null;
+
+        const keywords = this._componentWeightKeywords(component, rigidType);
+
+        const candidates = weightMaster.filter(r => {
+            const desc = String(r?.[descKey] || '').toUpperCase();
+            if (keywords.length && !keywords.some(kw => desc.includes(kw))) return false;
+
+            const rRating = this._num(r?.[ratingKey]);
+            const rSize = this._num(r?.[sizeKey]);
+            const rLength = this._num(this._getFirstValue(r, this._weightLengthKeys(lengthKey)));
+
+            if (!Number.isFinite(rRating) || !Number.isFinite(rSize) || !Number.isFinite(rLength)) return false;
+
+            // Strict matching:
+            // Rating must match exactly/near exactly.
+            // Size must match Converted Bore / DN.
+            // Length must match face-to-face / Len_Calc.
+            if (Math.abs(rRating - ratingNum) > 0.1) return false;
+            if (Math.abs(rSize - boreNum) > 0.1) return false;
+            if (Math.abs(rLength - lengthNum) > 0.1) return false;
+
+            return true;
+        });
+
+        if (!candidates.length) return null;
+
+        // If duplicate exact matches exist, use first deterministic row.
+        const best = candidates[0];
+        const weight = String(best?.[weightKey] ?? '').trim();
+
+        return weight
+            ? {
+                row: best,
+                weight,
+                matchCount: candidates.length
+            }
+            : null;
+    }
+
     _fetchRowAttrs(rowIdx) {
         const row = this.tableData[rowIdx];
         if (!row) return null;
@@ -214,6 +316,8 @@ export class PcfTableController {
         const pcMatKey   = dm.headerMap?.pipingclass?.material || 'Material_Name';
         const wSizeKey   = dm.headerMap?.weights?.size         || 'Size (NPS)';
         const wRatingKey = dm.headerMap?.weights?.rating       || 'Rating';
+            const wLengthKey = dm.headerMap?.weights?.length       || 'Length (RF-F/F)';
+
         const wWeightKey = dm.headerMap?.weights?.weight       || 'RF/RTJ KG';
         const wDescKey   = dm.headerMap?.weights?.description  || 'Type Description';
 
@@ -282,40 +386,26 @@ export class PcfTableController {
             }
         }
 
-        // Step 5: weight by Rigid Type (flange, valve, elbow, etc.) + rating + bore
-        // Rigid Type drives the description filter in the weight master
-        const lookupRigidType = rigidType || compType;
-        if (lookupRigidType && ratingNum !== null && bore > 0 && weightMaster.length) {
-            const rtUpper = lookupRigidType.toUpperCase();
-            // Build keyword list from rigid type for matching weight master descriptions
-            const keywords = [];
-            if (rtUpper.includes('FLANGE') || rtUpper === 'F') keywords.push('FLANGE', 'FLG');
-            else if (rtUpper.includes('VALVE') || rtUpper === 'V') keywords.push('VALVE', 'VLV');
-            else if (rtUpper.includes('ELBOW') || rtUpper === 'E') keywords.push('ELBOW', 'ELB');
-            else if (rtUpper.includes('TEE') || rtUpper === 'T') keywords.push('TEE');
-            else if (rtUpper.includes('RED') || rtUpper.includes('REDUCER')) keywords.push('REDUCER', 'RED');
-            else if (rtUpper.includes('CAP')) keywords.push('CAP');
-            else keywords.push(rtUpper.split(/[\s_-]/)[0]); // first word fallback
+        // Step 5: CA8 component weight.
+        // Strict smart fill: Component/Rigid Type + Length + Size + Rating.
+        const rowLength = row[H('Len_Calc')];
 
-            const candidateRows = keywords.length
-                ? weightMaster.filter(r => {
-                    const desc = String(r[wDescKey] || '').toUpperCase();
-                    return keywords.some(kw => desc.includes(kw));
-                })
-                : weightMaster;
+        const smartWeight = this._findSmartWeightMatch({
+            weightMaster,
+            component: compType,
+            rigidType,
+            bore,
+            rating: ratingNum,
+            length: rowLength,
+            sizeKey: wSizeKey,
+            ratingKey: wRatingKey,
+            lengthKey: wLengthKey,
+            weightKey: wWeightKey,
+            descKey: wDescKey
+        });
 
-            if (candidateRows.length) {
-                let best = null, bestDiff = Infinity;
-                for (const r of candidateRows) {
-                    const rRaw  = parseFloat(String(r[wRatingKey] || '').replace(/[#LB]/gi, ''));
-                    const rSize = parseFloat(String(r[wSizeKey]   || '').replace(/[^\d.]/g, ''));
-                    if (isNaN(rRaw) || isNaN(rSize)) continue;
-                    if (Math.abs(rRaw - ratingNum) > 0.1) continue;
-                    const diff = Math.abs(rSize - bore);
-                    if (diff < bestDiff) { bestDiff = diff; best = r; }
-                }
-                if (best) result.weight = String(best[wWeightKey] || '').trim();
-            }
+        if (smartWeight) {
+            result.weight = smartWeight.weight;
         }
 
         return result;
@@ -466,6 +556,7 @@ export class PcfTableController {
             const pcMatKey   = dm.headerMap?.pipingclass?.material || 'Material_Name';
             const wSizeKey   = dm.headerMap?.weights?.size         || 'Size (NPS)';
             const wRatingKey = dm.headerMap?.weights?.rating       || 'Rating';
+            const wLengthKey = dm.headerMap?.weights?.length       || 'Length (RF-F/F)';
             const wWeightKey = dm.headerMap?.weights?.weight       || 'RF/RTJ KG';
             const wDescKey   = dm.headerMap?.weights?.description  || 'Type Description';
 
@@ -551,26 +642,57 @@ export class PcfTableController {
                 }
             }
 
-            // Step 5: flange weight → CA8
+            // Step 5: CA8 component weight.
+            // CA8 is group-level in this popup, but length is row-level.
+            // Therefore fill CA8 only when all rows in this group resolve to the same strict
+            // Length + Size + Rating + Component/RigidType match.
             if (ratingNum !== null) {
-                const boreNum = parseFloat(bore) || 0;
-                const flangeRows = weightMaster.filter(r => {
-                    const desc = String(r[wDescKey] || '').toUpperCase();
-                    return desc.includes('FLANGE') || desc.includes('FLG');
-                });
-                let bestRow = null, bestDiff = Infinity;
-                for (const r of flangeRows) {
-                    const rRaw  = parseFloat(String(r[wRatingKey] || '').replace(/[#LB]/gi, ''));
-                    const rSize = parseFloat(String(r[wSizeKey]  || '').replace(/[^\d.]/g, ''));
-                    if (isNaN(rRaw) || isNaN(rSize)) continue;
-                    if (Math.abs(rRaw - ratingNum) > 0.1) continue;
-                    const diff = Math.abs(rSize - boreNum);
-                    if (diff < bestDiff) { bestDiff = diff; bestRow = r; }
+                const ca8Inp = tr.querySelector('input[data-ca="CA8"]');
+                const rowIndices = String(tr.dataset.rowIndices || '')
+                    .split(',')
+                    .map(v => parseInt(v, 10))
+                    .filter(Number.isFinite);
+
+                const matchedWeights = [];
+
+                for (const rowIdx of rowIndices) {
+                    const srcRow = this.tableData[rowIdx];
+                    if (!srcRow) continue;
+
+                    const H = (name) => this.headers.indexOf(name);
+                    const srcComponent = String(srcRow[H('Component')] || '').trim();
+                    const srcRigidType = String(srcRow[H('Rigid Type')] || '').trim();
+                    const srcBore = srcRow[H('DN (Bore)')];
+                    const srcLength = srcRow[H('Len_Calc')];
+
+                    const smartWeight = this._findSmartWeightMatch({
+                        weightMaster,
+                        component: srcComponent,
+                        rigidType: srcRigidType,
+                        bore: srcBore,
+                        rating: ratingNum,
+                        length: srcLength,
+                        sizeKey: wSizeKey,
+                        ratingKey: wRatingKey,
+                        lengthKey: wLengthKey,
+                        weightKey: wWeightKey,
+                        descKey: wDescKey
+                    });
+
+                    if (smartWeight?.weight) matchedWeights.push(smartWeight.weight);
                 }
-                if (bestRow) {
-                    const wt = String(bestRow[wWeightKey] || '').trim();
-                    const ca8Inp = tr.querySelector('input[data-ca="CA8"]');
-                    if (ca8Inp && wt && (!ca8Inp.value || String(ca8Inp.value).trim() === '')) ca8Inp.value = wt;
+
+                const uniqueWeights = [...new Set(matchedWeights.map(v => String(v).trim()).filter(Boolean))];
+
+                if (
+                    ca8Inp &&
+                    uniqueWeights.length === 1 &&
+                    (!ca8Inp.value || String(ca8Inp.value).trim() === '')
+                ) {
+                    ca8Inp.value = uniqueWeights[0];
+                } else if (ca8Inp && uniqueWeights.length > 1) {
+                    ca8Inp.placeholder = 'Mixed length matches — row fill only';
+                    ca8Inp.title = 'CA8 not filled because this Line/Bore group has multiple Length + Size + Rating weight matches.';
                 }
             }
 

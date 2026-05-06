@@ -32,7 +32,7 @@ export function scoreBoreSourceHeader(header, type = '') {
   const t = String(type || '').toLowerCase();
   let score = 0;
 
-  // Project rule: bore source should auto-map to a real column whose name contains "size".
+  // Main rule: prefer real source columns whose name contains "size".
   if (/\bsize\b/.test(h) || h.includes('size')) score += 100;
 
   if (/nominal/.test(h)) score += 30;
@@ -46,7 +46,7 @@ export function scoreBoreSourceHeader(header, type = '') {
   if (t === 'weights' && /nps|size|dn|nb|bore/.test(h)) score += 8;
   if (t === 'pipingclass' && /size|dn|nb|bore/.test(h)) score += 8;
 
-  // Never let blank Excel headers such as ColumnX1 beat a named size/bore column.
+  // Blank Excel headers like ColumnX1 must not beat named size/bore columns.
   if (isGeneratedColumnHeader(header)) score -= 50;
 
   return score;

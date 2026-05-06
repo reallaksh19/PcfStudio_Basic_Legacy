@@ -8,6 +8,7 @@ import { initRayConceptTab }   from './ray-concept/rc-tab.js';
 import { initRayViewerTab }    from './ray-tabs/ray-viewer-tab.js';
 import { initRayMasterData }   from './ray-tabs/ray-masterdata-tab.js';
 import { initConvertedBoreTools } from './ui/converted-bore-tools.js';
+import { initLinelistKeyNotice } from './ui/linelist-key-notice.js';
 import { initMasterMatchDiagnosticsPanel } from './ui/master-match-diagnostics-panel.js';
 import { initCommonCa8ValveWeightResolver } from './ui/common-ca8-valve-weight-resolver.js';
 import { themeManager }        from './ui/theme-manager.js';
@@ -66,6 +67,7 @@ async function boot() {
     initRayViewerTab();    // ② 3D Viewer
     initRayMasterData();   // ③ Master Data + CA Config
     initConvertedBoreTools();
+    initLinelistKeyNotice();
     initMasterMatchDiagnosticsPanel();
     initCommonCa8ValveWeightResolver();
     try {

@@ -1,5 +1,15 @@
 import { create } from 'zustand';
 
+function normalizeDataTable(table) {
+  if (Array.isArray(table)) return table;
+  if (Array.isArray(table?.components)) return table.components;
+  if (Array.isArray(table?.rows)) return table.rows;
+  if (Array.isArray(table?.dataTable)) return table.dataTable;
+  if (Array.isArray(table?.data)) return table.data;
+  return [];
+}
+
+
 // Decoupled, Atomic Zustand store primarily aimed at driving high-performance
 // visual updates for the 3D Canvas without forcing global React Context re-renders.
 
@@ -322,11 +332,19 @@ export const useStore = create((set, get) => ({
 
   // Sync function to mirror AppContext if required,
   // or act as the standalone state manager.
-  setDataTable: (table) => { get().logTestEvent('DATA_TABLE_CHANGE', { length: table.length }); set({ dataTable: table }); },
+  setDataTable: (table) => {
+    const safeTable = normalizeDataTable(table);
+    get().logTestEvent('DATA_TABLE_CHANGE', {
+      length: safeTable.length,
+      normalizedFrom: Array.isArray(table) ? 'array' : typeof table
+    });
+    set({ dataTable: safeTable });
+  },
 
   // Set datatable from external RC tab (converts RC rows to Smart Fixer components)
   setExternalDataTable: (rows) => {
-      const components = rows.map((row, idx) => {
+      const safeRows = normalizeDataTable(rows);
+      const components = safeRows.map((row, idx) => {
           // Convert RC datatable row to Smart Fixer component format
           const points = [];
           if (row.ep1) points.push(row.ep1);
@@ -381,14 +399,14 @@ export const useStore = create((set, get) => ({
   // A helper method that safely retrieves pipes only
   getPipes: () => {
     const s = get();
-    return s.dataTable.filter(r => (r.type || "").toUpperCase() === 'PIPE' && !s.hiddenElementIds.includes(r._rowIndex));
+    return normalizeDataTable(s.dataTable).filter(r => (r.type || "").toUpperCase() === 'PIPE' && !s.hiddenElementIds.includes(r._rowIndex));
   },
 
   // A helper method that safely retrieves all non-PIPE components for distinct 3D rendering
   // Note: We now include SUPPORT components in immutables so they render visibly.
   getImmutables: () => {
     const s = get();
-    return s.dataTable.filter(r => (r.type || "").toUpperCase() !== 'PIPE' && !s.hiddenElementIds.includes(r._rowIndex));
+    return normalizeDataTable(s.dataTable).filter(r => (r.type || "").toUpperCase() !== 'PIPE' && !s.hiddenElementIds.includes(r._rowIndex));
   },
 
 }));

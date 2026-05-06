@@ -32,7 +32,7 @@ export function renderCAMatrix(lineGroups, caDefs) {
   const labels = {
     'CA1': 'Pr. (KPA)',   'CA2': 'Temp (°C)',  'CA3': 'Mat.',
     'CA4': 'Wall (mm)',   'CA5': 'Insul (mm)', 'CA6': 'InsDen (kg/m³)',
-    'CA7': 'Corr (mm)',   'CA8': 'Flange Wt (kg)', 'CA9': 'Den (kg/m³)',
+    'CA7': 'Corr (mm)',   'CA8': 'Comp Wt. (kg)', 'CA9': 'Den (kg/m³)',
     'CA10': 'HP (KPA)'
   };
 
@@ -70,7 +70,7 @@ export function renderCAMatrix(lineGroups, caDefs) {
     ).join('');
 
     rowsHtml += `
-      <tr data-group-row="${key}" data-original-line="${group.lineNo}">
+      <tr data-group-row="${key}" data-original-line="${group.lineNo}" data-row-indices="${group.rows.join(\',\')}">
         <td style="padding:2px;text-align:center;">
           <button class="btn-row-load-master" data-group="${key}" title="Load from master for this row"
             style="cursor:pointer;background:var(--amber);color:#000;border:none;border-radius:3px;

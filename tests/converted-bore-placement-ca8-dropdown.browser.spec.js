@@ -26,7 +26,7 @@ function makeRow({ component = 'VALVE', bore = '100', len = '200', rating = '150
   return row;
 }
 
-test('Linelist Converted Bore control renders below Line No Derived attribute section', async ({ page }) => {
+test('Linelist Converted Bore control renders below Key Columns primary-key section', async ({ page }) => {
   await page.goto('/');
 
   const result = await page.evaluate(async () => {
@@ -36,12 +36,19 @@ test('Linelist Converted Bore control renders below Line No Derived attribute se
     const shell = document.createElement('div');
     shell.id = 'converted-bore-placement-test-shell';
     shell.innerHTML = `
-      <section id="linelist-mapping-section">Mapping section</section>
-      <section id="linelist-attr-section">Line No. Derived</section>
+      <section id="linelist-mapping-section">
+        <section id="linelist-key-columns-section" data-linelist-key-columns>
+          <h4>Key Columns (Primary Key)</h4>
+          <p>Required for robust Service + Sequence matching.</p>
+          <div>ColumnX1 (PCF Line Ref) — Derived Key</div>
+          <div>Key1 Service + Key2 Line Number + Key3 (spare) (none)</div>
+        </section>
+      </section>
+      <section id="linelist-attr-section">Attribute injection / Line No. Derived</section>
     `;
     document.body.appendChild(shell);
 
-    dataManager.linelistData = [{ 'Line No. Derived': 'L-001', 'Nominal Pipe size': '273.1' }];
+    dataManager.linelistData = [{ ColumnX1: 'L-001', 'Line Number': '001', Service: 'UTIL', 'Nominal Pipe size': '273.1' }];
     initConvertedBoreTools();
 
     const tool = document.getElementById('converted-bore-tools-linelist');
@@ -49,12 +56,14 @@ test('Linelist Converted Bore control renders below Line No Derived attribute se
       exists: Boolean(tool),
       previousId: tool?.previousElementSibling?.id || '',
       placement: tool?.dataset?.placement || '',
+      attrBeforeTool: Boolean(tool && document.getElementById('linelist-attr-section')?.compareDocumentPosition(tool) & Node.DOCUMENT_POSITION_FOLLOWING),
     };
   });
 
   expect(result.exists).toBe(true);
-  expect(result.previousId).toBe('linelist-attr-section');
-  expect(result.placement).toBe('below-line-no-derived');
+  expect(result.previousId).toBe('linelist-key-columns-section');
+  expect(result.placement).toBe('below-key-columns');
+  expect(result.attrBeforeTool).toBe(false);
 });
 
 test('CA8 valve cell shows dropdown when DN + rating + length has multiple weight matches', async ({ page }) => {
